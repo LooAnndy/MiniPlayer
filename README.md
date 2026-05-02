@@ -1,71 +1,105 @@
-# 🎵 MiniPlayer (Project Kazumi-Harmony)
+# MiniPlayer — 鸿蒙聚合音乐播放器
 
-一个基于 **HarmonyOS** 的多源音频聚合下载与播放器。本项目旨在打破平台壁垒，实现 B 站、网易云、QQ 音乐等主流平台的资源整合，提供沉浸式的听歌体验。
-
-> **项目灵感：** 参考开源项目 Kazumi 的聚合思想，结合鸿蒙原生能力（ArkTS）实现全场景音频管理。
+基于 **HarmonyOS NEXT API 23** + **ArkTS V2** 的多源音乐搜索与流媒体播放器。直接对接网易云音乐、QQ音乐后端 API，支持关键词搜索、Cookie 持久化鉴权、在线流播放。
 
 ---
 
-## 📖 项目简介
-**HarmonyMusic** 是一款专为鸿蒙生态设计的音频管理工具。它不生产内容，而是通过自建的后端解析引擎，将分布在不同平台的音视频资源转化为统一的音频流，支持用户自定义跨平台的本地歌单。
+## 功能
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| 网易云搜索 + 播放 | 已完成 | cloudsearch/pc + eapi 加密获取流地址 |
+| QQ 音乐搜索 + 播放 | 已完成 | musicu.fcg + vkey 获取流地址 |
+| Bilibili | 预留 | API 已分析，待接入 |
+| Cookie 持久化 | 已完成 | Preferences 存储，三平台独立管理 |
+| 多源切换 | 已完成 | 搜索页内置网易云/QQ/B站切换条 |
+| 流播放 | 已完成 | AVPlayer 直连 CDN 流地址 |
+| 进度条 | 已完成 | PlayerBar 顶部线性进度 + 环形进度 |
+| 全屏播放页 | 已完成 | 黑胶唱片风格 |
+| 下载管理 | 预留 | 页面已就绪 |
 
 ---
 
-## ✨ 核心功能
+## 项目结构
 
-### 1. 多源聚合搜索
-* **一键搜索：** 只需要输入关键词，后端将并发请求 B 站、网易云、QQ 音乐等多个平台。
-* **精准匹配：** 支持通过视频/歌曲链接、BV 号、分享口令直接解析。
-
-### 2. 自定义歌单系统
-* **跨平台收藏：** 支持将来自不同平台的音频（如 B 站视频音频 + 网易云单曲）放入同一个自定义歌单。
-* **本地持久化：** 基于鸿蒙 **RDB (Relational Database)** 实现，应用关闭后歌单数据不丢失。
-
-### 3. 高级播放控制
-* **播放模式：** 支持 **顺序播放**、**列表循环**、**单曲循环** 以及基于洗牌算法的 **随机播放**。
-* **后台播控：** 深度集成系统 **AVSession**，支持在锁屏界面、状态栏播控中心查看进度及切换歌曲。
-
-### 4. 资源下载管理
-* **后台下载：** 使用系统级下载代理，确保应用退到后台后任务不中断。
-* **状态同步：** 下载完成后自动同步至本地库，支持离线播放。
-
----
-
-## 🛠️ 技术架构
-
-### 整体逻辑
-* **Frontend (HarmonyOS):** 使用 **ArkTS** 与 **ArkUI** 构建。通过 `Media Kit` 实现音频渲染，`Relational Store` 负责本地数据管理。
-* **Backend (Parser API):** 使用 **Python (Flask/FastAPI)** 搭建解析网关。利用异步并发处理多平台爬虫逻辑，统一输出音频直链。
-
-### 技术栈选型
-| 维度 | 技术方案 | 说明 |
-| :--- | :--- | :--- |
-| **UI 框架** | ArkUI (Stage Model) | 鸿蒙原生声明式开发 |
-| **音频引擎** | AVPlayer | 处理媒体状态切换及解码播放 |
-| **本地数据库** | Relational Store (RDB) | 存储歌曲元数据与歌单关联表 |
-| **网络通信** | @ohos.net.http | 与后端 API 进行数据交互 |
-| **解析后端** | Python + Crawlers | 负责各平台协议分析与直链提取 |
+```
+entry/src/main/ets/
+├── pages/
+│   ├── Index.ets              # 启动页（3s 倒计时 → MainPage）
+│   ├── MainPage.ets           # 主 Tab 壳（首页/搜索/笔记/我的 + PlayerBar）
+│   ├── HomePage.ets           # 首页（分段选择器 + 推荐/歌单）
+│   ├── SearchPage.ets         # 搜索页（关键词搜索 + 平台切换条）
+│   ├── PlayerPage.ets         # 全屏播放页（唱片 + 唱针动画）
+│   ├── MinePage.ets           # 我的页（三平台 Cookie 配置与测试）
+│   └── DownloadPage.ets       # 下载管理页（预置 UI）
+├── service/
+│   ├── AVPlayerService.ets    # 音频播放引擎（状态机 + 流播放）
+│   ├── NetEaseService.ets     # 网易云 API（搜索 + EAPI 加密获取流）
+│   └── QQMusicService.ets     # QQ 音乐 API（搜索 + vkey 获取流）
+├── view/
+│   ├── PlayerBar.ets          # 底部迷你播放条（进度 + 封面 + 控制）
+│   └── SongItem.ets           # 歌曲列表项
+├── viewmodel/
+│   └── PlayerViewModel.ets    # 播放器 ViewModel（状态/进度/拖拽）
+├── model/
+│   └── Song.ets               # 数据模型（Song / Platform / PlatformInfo / PLATFORM_LIST）
+└── utils/
+    ├── HttpUtils.ets           # HTTP 封装（GET / POST form / POST JSON）
+    ├── CryptoUtils.ets         # EAPI 加密（AES-128-ECB + MD5）
+    ├── CookieStorage.ets       # Cookie Preferences 持久化
+    └── FileUtils.ets           # 本地文件选取与 fd 播放
+```
 
 ---
 
-## 🔄 工作流程 (Workflow)
+## API 对接
 
-1. **搜索聚合：** 用户输入关键词 $\rightarrow$ 前端请求后端接口 $\rightarrow$ 后端并发抓取结果并返回 JSON。
-2. **数据存储：** 用户收藏歌曲 $\rightarrow$ 将歌曲元数据（ID、标题、封面、来源）存入本地 RDB。
-3. **音频播放：** 触发播放 $\rightarrow$ 请求后端获取最新的 **M4A/MP3 直链** $\rightarrow$ `AVPlayer` 加载流媒体。
-4. **乱序逻辑：** 开启随机模式 $\rightarrow$ 对当前播放列表执行 **Fisher-Yates Shuffle** $\rightarrow$ 生成临时播放序列。
+### 网易云音乐
+
+| 接口 | URL | 方法 | 加密 |
+|------|-----|------|------|
+| 搜索 | `music.163.com/api/cloudsearch/pc` | POST form | 否 |
+| 播放地址 | `interface3.music.163.com/eapi/song/enhance/player/url/v1` | POST form | **EAPI** |
+
+### QQ 音乐
+
+| 接口 | URL | 方法 | 加密 |
+|------|-----|------|------|
+| 搜索 | `u.y.qq.com/cgi-bin/musicu.fcg` | POST JSON | 否 |
+| 播放地址 | `u.y.qq.com/cgi-bin/musicu.fcg` | POST JSON | 否 |
 
 ---
 
-## 📅 开发计划 (Roadmap)
+## 快速开始
 
-* [ ] **Phase 1: 后端基石** - 完成 Python 聚合搜索接口，支持 B 站与网易云。
-* [ ] **Phase 2: UI 框架** - 设计沉浸式播放页（毛玻璃背景）与搜索列表页。
-* [ ] **Phase 3: 数据中心** - 实现本地 RDB 数据库逻辑，完成歌单 CRUD 功能。
-* [ ] **Phase 4: 播放引擎** - 集成 AVPlayer 及其状态回调，实现后台播放与随机算法。
-* [ ] **Phase 5: 优化发布** - 接入下载模块，处理网络异常与链接过期重试逻辑。
+1. 安装 DevEco Studio + HarmonyOS SDK (API 23)
+2. 克隆项目，DevEco 打开 `MiniPlayer/` 目录
+3. Build → Run 到模拟器或真机
+4. 首次使用：进入"我的"→ 填写各平台 Cookie → 点击「测试连接」→ 验证通过
+5. 搜索歌曲 → 点击播放
+
+### Cookie 获取
+
+| 平台 | Cookie 关键字段 | 获取方式 |
+|------|----------------|---------|
+| 网易云 | `MUSIC_U` | 浏览器登录 music.163.com → F12 → Cookies |
+| QQ 音乐 | `uin` + `qm_keyst` | 浏览器登录 y.qq.com → F12 → Cookies |
 
 ---
 
-## ⚠️ 免责声明
-本项目仅供 HarmonyOS 大作业学习及技术研究使用。所有音视频资源均通过后端接口动态获取，应用本身不存储任何版权音频内容。请在法律允许范围内使用。
+## 技术栈
+
+| 维度 | 方案 |
+|------|------|
+| UI 框架 | ArkTS V2 (`@ComponentV2` / `@Local` / `@Param` / `@Event`) |
+| 音频引擎 | `@ohos.multimedia.media` AVPlayer |
+| 网络请求 | `@ohos.net.http` |
+| 加密 | `@ohos.security.cryptoFramework` (AES-128-ECB + MD5) |
+| 持久化 | `@ohos.data.preferences` |
+| 权限 | `ohos.permission.INTERNET` |
+
+---
+
+## 免责声明
+
+本项目仅供 HarmonyOS 开发学习及技术研究使用。所有音视频资源均通过公开 API 动态获取，应用本身不存储任何版权音频内容。请遵守各平台服务条款。
