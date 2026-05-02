@@ -83,7 +83,7 @@ interface EapiUrlPayload {
   header: string;
 }
 
-// 表单和请求头类型（具名接口，替代 Record<string, string>）
+// 表单和请求头类型
 interface SearchForm {
   s: string;
   type: string;

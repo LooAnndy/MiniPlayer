@@ -3,6 +3,9 @@
  * 管理全局路由栈，启动时展示 SplashPage，3 秒后自动跳转 MainPage
  */
 import { MainPage } from './MainPage';
+import { initCookieStorage, loadCookie } from '../utils/CookieStorage';
+import { Platform } from '../model/Song';
+import { netEaseService } from '../service/NetEaseService';
 
 @Entry
 @ComponentV2
@@ -13,6 +16,13 @@ struct Index {
   private timer?: number;
 
   aboutToAppear() {
+    // 初始化 Cookie 持久化存储，恢复三平台已保存的 Cookie
+    initCookieStorage(getContext(this)).then(() => {
+      loadCookie(Platform.NETEASE).then((c) => { if (c) { netEaseService.setCookie(c); } });
+      loadCookie(Platform.BILIBILI).then((c) => { if (c) { console.info('已恢复 Bilibili Cookie'); } });
+      loadCookie(Platform.QQ).then((c) => { if (c) { console.info('已恢复 QQ Cookie'); } });
+    });
+
     // 3 秒倒计时，结束后跳转主页面
     this.timer = setInterval(() => {
       this.countdown--;

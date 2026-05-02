@@ -61,14 +61,43 @@ export enum Platform {
   LOCAL = 'local'
 }
 
-// 平台配置
-export interface PlatformConfig {
+// 平台展示与存储配置（CookieStorage / MinePage 共用）
+export interface PlatformInfo {
+  platform: Platform;
   name: string;
-  icon: ResourceStr;
-  enabled: boolean;
-  apiBase: string;
-  searchPath: string;
+  color: string;
+  icon: string;
+  storageKey: string;
+  cookieHint: string;
 }
+
+// 三平台配置表（唯一数据源）
+export const PLATFORM_LIST: PlatformInfo[] = [
+  {
+    platform: Platform.NETEASE,
+    name: '网易云音乐',
+    color: '#C20C0C',
+    icon: '🎵',
+    storageKey: 'cookie_netease',
+    cookieHint: 'MUSIC_U=xxx; os=pc; ...'
+  },
+  {
+    platform: Platform.BILIBILI,
+    name: 'Bilibili',
+    color: '#FB7299',
+    icon: '📺',
+    storageKey: 'cookie_bilibili',
+    cookieHint: 'SESSDATA=xxx; bili_jct=xxx; ...'
+  },
+  {
+    platform: Platform.QQ,
+    name: 'QQ 音乐',
+    color: '#31C27C',
+    icon: '🎶',
+    storageKey: 'cookie_qq',
+    cookieHint: 'uin=xxx; qm_keyst=xxx; ...'
+  }
+];
 
 // Tab 栏项（对齐文档 TabBarItem）
 export interface TabBarItem {
