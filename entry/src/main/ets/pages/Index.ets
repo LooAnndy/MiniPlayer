@@ -6,6 +6,7 @@ import { MainPage } from './MainPage';
 import { initCookieStorage, loadCookie } from '../utils/CookieStorage';
 import { Platform } from '../model/Song';
 import { netEaseService } from '../service/NetEaseService';
+import { qqMusicService } from '../service/QQMusicService';
 
 @Entry
 @ComponentV2
@@ -20,7 +21,7 @@ struct Index {
     initCookieStorage(getContext(this)).then(() => {
       loadCookie(Platform.NETEASE).then((c) => { if (c) { netEaseService.setCookie(c); } });
       loadCookie(Platform.BILIBILI).then((c) => { if (c) { console.info('已恢复 Bilibili Cookie'); } });
-      loadCookie(Platform.QQ).then((c) => { if (c) { console.info('已恢复 QQ Cookie'); } });
+      loadCookie(Platform.QQ).then((c) => { if (c) { qqMusicService.setCookie(c); } });
     });
 
     // 3 秒倒计时，结束后跳转主页面

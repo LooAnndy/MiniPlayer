@@ -8,7 +8,6 @@ import { Platform, PLATFORM_LIST } from '../model/Song';
 
 const STORE_NAME = 'netEaseCookie';
 
-// 平台 → 存储键名（从 PLATFORM_LIST 查找，保证与配置一致）
 function storageKey(platform: Platform): string {
   for (let i = 0; i < PLATFORM_LIST.length; i++) {
     if (PLATFORM_LIST[i].platform === platform) {
@@ -20,17 +19,37 @@ function storageKey(platform: Platform): string {
 
 let prefInstance: preferences.Preferences | null = null;
 
-export async function initCookieStorage(context: common.Context): Promise<void> {
-  prefInstance = await preferences.getPreferences(context, STORE_NAME);
+// 持有 init Promise，确保 save/load 在初始化完成后才执行
+let initPromise: Promise<void> | null = null;
+
+export function initCookieStorage(context: common.Context): Promise<void> {
+  if (initPromise) return initPromise; // 已初始化，直接返回
+  initPromise = preferences.getPreferences(context, STORE_NAME).then((pref) => {
+    prefInstance = pref;
+  });
+  return initPromise;
+}
+
+// 确保 prefInstance 已初始化，未初始化时等待 initPromise
+async function ensureReady(): Promise<boolean> {
+  if (prefInstance) return true;
+  if (initPromise) {
+    await initPromise;
+    return prefInstance !== null;
+  }
+  return false;
 }
 
 export async function saveCookie(platform: Platform, cookie: string): Promise<void> {
-  if (!prefInstance) return;
-  await prefInstance.put(storageKey(platform), cookie);
-  await prefInstance.flush();
+  const ready = await ensureReady();
+  if (!ready) { console.error('CookieStorage 未初始化'); return; }
+  await prefInstance!.put(storageKey(platform), cookie);
+  await prefInstance!.flush();
+  console.info('Cookie 已持久化');
 }
 
 export async function loadCookie(platform: Platform): Promise<string> {
-  if (!prefInstance) return '';
-  return await prefInstance.get(storageKey(platform), '') as string;
+  const ready = await ensureReady();
+  if (!ready) { console.error('CookieStorage 未初始化'); return ''; }
+  return await prefInstance!.get(storageKey(platform), '') as string;
 }

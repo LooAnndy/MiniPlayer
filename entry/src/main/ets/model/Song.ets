@@ -45,6 +45,7 @@ export interface Song {
   coverUrl?: string;           // 封面URL → 通常 = albumDetail.picUrl
   audioUrl: string;            // 音频流地址
   platform: Platform;          // 来源平台
+  sourceId?: string;           // 平台原生ID（QQ= songmid, Bilibili= bvid）
   artists?: ArtistItem[];      // 歌手列表（可选）
   albumDetail?: AlbumItem;     // 专辑详情（可选）
   popularity?: number;         // 热度

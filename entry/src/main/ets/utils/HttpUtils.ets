@@ -41,6 +41,32 @@ export class HttpUtils {
    * POST form-urlencoded 请求（对应网易云搜索等常规 API）
    * extraData 按 key1=value1&key2=value2 编码为字符串
    */
+  // GET 请求
+  async get<T>(url: string, headers: Object): Promise<T> {
+    return this.request<T>(url, {
+      method: http.RequestMethod.GET,
+      header: headers,
+      expectDataType: http.HttpDataType.STRING,
+      connectTimeout: 60000,
+      readTimeout: 60000
+    });
+  }
+
+  // POST JSON 请求（用于 QQ Music vkey 等 JSON API）
+  async postJson<T>(url: string, body: Object, headers: Object): Promise<T> {
+    const hd = headers as Record<string, string>;
+    const merged: Record<string, string> = { 'Content-Type': 'application/json' };
+    Object.keys(hd).forEach((k) => { merged[k] = hd[k]; });
+    return this.request<T>(url, {
+      method: http.RequestMethod.POST,
+      header: merged,
+      extraData: JSON.stringify(body),
+      expectDataType: http.HttpDataType.STRING,
+      connectTimeout: 60000,
+      readTimeout: 60000
+    });
+  }
+
   // POST form 请求（formData 和 headers 为 Object 类型，绕过 ArkTS Record 限制）
   async postForm<T>(url: string, formData: Object, headers: Object): Promise<T> {
     const fd = formData as Record<string, string>;
