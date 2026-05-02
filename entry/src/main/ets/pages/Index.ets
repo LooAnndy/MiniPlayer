@@ -1,114 +1,83 @@
-import PlayerViewModel from '../viewmodel/PlayerViewModel';
+/**
+ * 应用根页面 —— Navigation 导航容器
+ * 管理全局路由栈，启动时展示 SplashPage，3 秒后自动跳转 MainPage
+ */
+import { MainPage } from './MainPage';
 
 @Entry
-@Component
+@ComponentV2
 struct Index {
-  // 引入ViewModel实例
-  private  viewModel: PlayerViewModel = new PlayerViewModel();
+  private navPathStack: NavPathStack = new NavPathStack();
+  @Local showSplash: boolean = true;
+  @Local countdown: number = 3;
+  private timer?: number;
 
   aboutToAppear() {
-    // 初始化播放器
-    this.viewModel.initPlayer();
+    // 3 秒倒计时，结束后跳转主页面
+    this.timer = setInterval(() => {
+      this.countdown--;
+      if (this.countdown <= 0) {
+        clearInterval(this.timer);
+        this.showSplash = false;
+      }
+    }, 1000);
   }
 
   aboutToDisappear() {
-    // 释放资源
-    this.viewModel.release();
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
   }
 
   build() {
-    Column({ space: 20 }) {
-      // 消息显示
-      Text(this.viewModel.message)
-        .fontSize(18)
-        .fontWeight(FontWeight.Bold)
+    Navigation(this.navPathStack) {
+      if (this.showSplash) {
+        // 启动闪屏
+        Stack({ alignContent: Alignment.Bottom }) {
+          Column({ space: 20 }) {
+            Image($r('app.media.default_cover'))
+              .width(120)
+              .height(120)
+              .borderRadius(24)
+              .objectFit(ImageFit.Cover)
 
-      // 文件名显示
-      Text(`当前文件: ${this.viewModel.currentFileName}`)
-        .fontSize(14)
-        .fontColor(Color.Gray)
+            Text('MiniPlayer')
+              .fontSize(28)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Color.White)
 
-      // 时间显示行
-      Row({ space: 10 }) {
-        Text(this.viewModel.formatTime(this.viewModel.currentTime))
-          .fontSize(14)
-          .fontColor(Color.Blue)
+            Text('发现音乐的力量')
+              .fontSize(14)
+              .fontColor('rgba(255, 255, 255, 0.7)')
+          }
+          .width('100%')
+          .height('100%')
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor('#C20C0C')
 
-        Text('/')
-          .fontSize(14)
-
-        Text(this.viewModel.formatTime(this.viewModel.duration))
-          .fontSize(14)
-          .fontColor(Color.Gray)
-      }
-
-      // 进度条组件
-      Stack() {
-        // 进度条背景
-        Progress({
-          value: this.viewModel.progressValue,
-          total: 100,
-          type: ProgressType.Linear
-        })
-          .width('90%')
-          .height(6)
-          .color(Color.Blue)
-          .backgroundColor('#E0E0E0')
-
-        // 拖拽手柄
-        Column() {
-          Circle()
-            .width(24)
-            .height(24)
-            .fill(Color.White)
-            .shadow({ radius: 4, color: '#888888' })
+          // 右上角倒计时跳过按钮
+          Button(`跳过 ${this.countdown}`)
+            .fontSize(14)
+            .fontColor('#C20C0C')
+            .backgroundColor(Color.White)
+            .borderRadius(16)
+            .position({ x: '70%', y: 32 })
+            .onClick(() => {
+              clearInterval(this.timer);
+              this.showSplash = false;
+            })
         }
-        .position({ x: `${this.viewModel.progressValue - 12}%`, y: -9 })
+        .width('100%')
+        .height('100%')
+      } else {
+        // 主页面壳（4 个 Tab + 全局 PlayerBar）
+        MainPage({ navPathStack: this.navPathStack })
       }
-      .width('90%')
-      .height(30)
-      .gesture(
-        PanGesture({ distance: 5 })
-          .onActionStart(() => {
-            this.viewModel.onDragStart();
-          })
-          .onActionUpdate((event: GestureEvent) => {
-            const progressWidth = 270;
-            const offsetX = event.offsetX;
-            const newValue = Math.max(0, Math.min(100, (offsetX / progressWidth) * 100));
-            this.viewModel.onDragMove(newValue);
-          })
-          .onActionEnd(() => {
-            this.viewModel.onDragEnd(this.viewModel.progressValue);
-          })
-      )
-
-      // 选择文件按钮
-      Button('选择并播放音乐')
-        .width(200)
-        .height(50)
-        .backgroundColor(Color.Blue)
-        .fontColor(Color.White)
-        .onClick(() => {
-          this.viewModel.selectAndPlay();
-        })
-
-      // 播放/暂停按钮
-      Button(this.viewModel.isPlaying ? '暂停' : '开始')
-        .width(150)
-        .height(60)
-        .backgroundColor(this.viewModel.isPlaying ? Color.Orange : Color.Green)
-        .fontColor(Color.White)
-        .fontSize(20)
-        .onClick(() => {
-          this.viewModel.togglePlayPause();
-        })
-        .enabled(this.viewModel.hasCurrentPlaySource())
-
     }
+    .mode(NavigationMode.Stack)
+    .hideTitleBar(true)
+    .hideToolBar(true)
     .width('100%')
     .height('100%')
-    .justifyContent(FlexAlign.Center)
-    .padding(20)
   }
 }

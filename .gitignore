@@ -10,3 +10,5 @@
 /.clang-tidy
 **/.test
 /.appanalyzer
+/api-analysis
+/plans

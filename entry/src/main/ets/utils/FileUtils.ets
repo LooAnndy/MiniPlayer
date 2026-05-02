@@ -1,14 +1,18 @@
+/**
+ * 文件服务 —— 封装系统文件选择器与沙箱文件读写
+ * 使用 @ohos.file.picker 选择文件，@ohos.file.fs 打开为 fd:// 路径供 AVPlayer 播放
+ */
 import picker from '@ohos.file.picker';
 import fs from '@ohos.file.fs';
 
-// 定义播放源数据结构
+// 播放源数据结构：fdUrl 供 AVPlayer 设置，fd 用于后续关闭
 export interface PlaySource {
-  fdUrl: string;   // 拼接好的 fd:// 路径
-  fd: number;      // 打开的文件描述符，用于后续关闭
+  fdUrl: string;
+  fd: number;
 }
 
 export class FileService {
-  // 选择本地文件
+  // 调起系统文件选择器，返回选中文件的 URI
   async selectLocalFile(): Promise<string | null> {
     try {
       const documentSelectOptions = new picker.DocumentSelectOptions();
@@ -25,11 +29,13 @@ export class FileService {
     }
   }
 
-  // 参照知识库文档：使用fs文件系统打开沙箱地址获取媒体文件地址并通过url属性进行播放
+  /**
+   * 打开沙箱文件并生成 fd:// 协议路径
+   * 参照 HarmonyOS 官方文档：使用 fs.open 获取文件描述符，拼接 fd:// 路径供 media.AVPlayer 使用
+   */
   async openFileAsFdUrl(fileUri: string): Promise<PlaySource | null> {
     try {
       let fdPath = 'fd://';
-      // 打开相应的资源文件地址获取fd
       let file = await fs.open(fileUri, fs.OpenMode.READ_ONLY);
       fdPath = fdPath + '' + file.fd;
 
@@ -44,7 +50,7 @@ export class FileService {
     }
   }
 
-  // 关闭文件描述符，防止内存泄漏
+  // 关闭文件描述符（播放结束时调用，防止内存泄漏）
   closeFileFd(fd: number) {
     try {
       fs.closeSync(fd);

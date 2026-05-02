@@ -1,19 +1,20 @@
-// service/AVPlayerService.ets
+/**
+ * 音频播放服务 —— 封装 @ohos.multimedia.media AVPlayer，管理播放状态机
+ */
 import media from '@ohos.multimedia.media';
 import { BusinessError } from '@ohos.base';
 
 export class AVPlayerService {
   private avPlayer: media.AVPlayer | null = null;
 
-  // 状态变化回调
+  // 回调接口：供 ViewModel 订阅播放器事件
   public onStateChanged?: (state: string) => void;
   public onError?: (error: BusinessError) => void;
-  // 进度更新回调
   public onTimeUpdate?: (currentTime: number, duration: number) => void;
   public onDurationUpdate?: (duration: number) => void;
   public onSeekDone?: () => void;
 
-  // 初始化播放器
+  // 创建 AVPlayer 实例并注册状态机回调
   async initPlayer() {
     try {
       this.avPlayer = await media.createAVPlayer();
@@ -23,60 +24,58 @@ export class AVPlayerService {
     }
   }
 
-  // 设置状态机回调
+  // 注册播放器事件监听：状态变化、错误、时长更新、时间更新、跳转完成
   private setAVPlayerCallback() {
     if (!this.avPlayer) return;
 
-    // 监听状态机变化
+    // 播放器状态机变化（idle → initialized → prepared → playing → paused → completed）
     this.avPlayer.on('stateChange', (state: string) => {
       console.info(`AVPlayer state changed to: ${state}`);
       this.onStateChanged?.(state);
     });
 
-    // 监听错误
+    // 播放错误回调
     this.avPlayer.on('error', (error: BusinessError) => {
       console.error('AVPlayer error:', JSON.stringify(error));
       this.onError?.(error);
     });
 
-    // 【新增】监听时长更新
+    // 总时长更新（prepare 完成后触发）
     this.avPlayer.on('durationUpdate', (duration: number) => {
       console.info(`durationUpdate: ${duration}ms`);
       this.onDurationUpdate?.(duration);
     });
 
-    // 【新增】监听时间更新（用于进度条）
+    // 播放进度更新（约每 300ms 触发一次）
     this.avPlayer.on('timeUpdate', (time: number) => {
-      console.info(`timeUpdate: ${time}ms`);
       if (this.avPlayer) {
         const duration = this.avPlayer.duration;
         this.onTimeUpdate?.(time, duration);
       }
     });
 
-    // 【新增】监听跳转完成
+    // seek 操作完成回调
     this.avPlayer.on('seekDone', () => {
       console.info('seekDone');
       this.onSeekDone?.();
     });
   }
 
-  // 设置播放源
+  // 设置播放源 URL（支持 fd:// 本地文件和 https:// 网络流）
   async setUrl(url: string) {
     if (!this.avPlayer) return;
     this.avPlayer.url = url;
   }
 
-  // 准备播放 (由 initialized 状态触发)
+  // 准备播放：由 initialized 状态触发
   async prepare() {
     if (!this.avPlayer) return;
     await this.avPlayer.prepare();
   }
 
-  // 开始播放
+  // 开始播放：仅 prepared / paused / stopped / completed 状态有效
   async play() {
     if (!this.avPlayer) return;
-    // 只有在 prepared, paused, stopped, completed 状态下才能调用 play
     await this.avPlayer.play();
   }
 
@@ -86,18 +85,19 @@ export class AVPlayerService {
     await this.avPlayer.pause();
   }
 
-  // 停止播放，显示当前帧，再次播放时从头开始播放。
+  // 停止播放（回退到 prepared 状态，再次 play 从头开始）
   async stop() {
     if (!this.avPlayer) return;
     await this.avPlayer.stop();
   }
 
-  // 播放器回到idle状态
+  // 重置播放器（回到 idle 状态）
   async reset() {
     if (!this.avPlayer) return;
     await this.avPlayer.reset();
   }
-  // 【新增】跳转到指定位置
+
+  // 跳转到指定位置（毫秒）
   async seek(position: number) {
     if (!this.avPlayer) return;
     await this.avPlayer.seek(position);
@@ -108,17 +108,17 @@ export class AVPlayerService {
     return this.avPlayer?.state || 'idle';
   }
 
-  // 获取当前播放时间
+  // 获取当前播放时间（毫秒）
   getCurrentTime(): number {
     return this.avPlayer?.currentTime || 0;
   }
 
-  // 获取总时长
+  // 获取总时长（毫秒）
   getDuration(): number {
     return this.avPlayer?.duration || 0;
   }
 
-  // 释放资源
+  // 释放播放器资源（退出页面时调用）
   async release() {
     if (!this.avPlayer) return;
     await this.avPlayer.release();

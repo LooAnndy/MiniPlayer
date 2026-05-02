@@ -1,12 +1,16 @@
+/**
+ * 播放器 ViewModel —— 管理播放状态、进度、拖拽交互，桥接 UI 与 AVPlayerService
+ */
 import { AVPlayerService } from '../service/AVPlayerService';
 import { FileService, PlaySource } from '../utils/FileUtils';
 import { BusinessError } from '@ohos.base';
 
 @ObservedV2
 export default class PlayerViewModel {
-  // UI状态变量
+  // @Trace 修饰的属性变化时自动通知 @ComponentV2 刷新 UI
   @Trace message: string = '点击下方按钮选择音乐文件';
   @Trace isPlaying: boolean = false;
+  @Trace isPlayed: boolean = false;  // 是否有过播放历史（控制 PlayerBar 显示）
   @Trace currentFileName: string = '';
   @Trace playerState: string = 'idle';
   @Trace currentTime: number = 0;
@@ -14,15 +18,19 @@ export default class PlayerViewModel {
   @Trace progressValue: number = 0;
   @Trace isDragging: boolean = false;
 
-  // 服务实例
+  // 底层服务实例（非 UI 状态，不需要 @Trace）
   private playerService: AVPlayerService = new AVPlayerService();
   private fileService: FileService = new FileService();
   private currentPlaySource: PlaySource | null = null;
 
-  // 初始化播放器
+  /**
+   * 初始化播放器：创建 AVPlayer 实例并绑定状态回调
+   * 状态机流转：initialized → prepared → playing ↔ paused → completed → idle
+   */
   async initPlayer(): Promise<void> {
     await this.playerService.initPlayer();
 
+    // 播放状态变化处理
     this.playerService.onStateChanged = (state: string) => {
       this.playerState = state;
 
@@ -50,6 +58,7 @@ export default class PlayerViewModel {
           console.info('播放器已回到 idle 状态');
           break;
         case 'released':
+          // 资源释放时关闭文件描述符，防止内存泄漏
           if (this.currentPlaySource) {
             this.fileService.closeFileFd(this.currentPlaySource.fd);
             this.currentPlaySource = null;
@@ -58,6 +67,7 @@ export default class PlayerViewModel {
       }
     };
 
+    // 播放错误处理：重置状态并释放文件资源
     this.playerService.onError = (error: BusinessError) => {
       this.isPlaying = false;
       this.message = '播放出错: ' + error.message;
@@ -67,11 +77,12 @@ export default class PlayerViewModel {
       }
     };
 
+    // 总时长更新回调
     this.playerService.onDurationUpdate = (duration: number) => {
       this.duration = duration;
-      console.info(`总时长: ${duration}ms`);
     };
 
+    // 播放进度更新：仅非拖拽状态时刷新进度条
     this.playerService.onTimeUpdate = (time: number, duration: number) => {
       if (!this.isDragging) {
         this.currentTime = time;
@@ -82,13 +93,17 @@ export default class PlayerViewModel {
       }
     };
 
+    // seek 完成：结束拖拽状态
     this.playerService.onSeekDone = () => {
       console.info('跳转完成');
       this.isDragging = false;
     };
   }
 
-  // 选择并播放文件
+  /**
+   * 选择本地音频文件并开始播放
+   * 流程：系统文件选择器 → 转换为 fd:// 路径 → 设置播放源
+   */
   async selectAndPlay(): Promise<void> {
     const uri = await this.fileService.selectLocalFile();
     if (!uri) {
@@ -99,6 +114,7 @@ export default class PlayerViewModel {
     this.currentFileName = uri.split('/').pop() || '未知文件';
     this.message = `正在加载: ${this.currentFileName}`;
 
+    // 先关闭旧文件描述符，防止泄漏
     if (this.currentPlaySource) {
       this.fileService.closeFileFd(this.currentPlaySource.fd);
     }
@@ -113,7 +129,10 @@ export default class PlayerViewModel {
     this.playerService.setUrl(source.fdUrl);
   }
 
-  // 播放/暂停切换
+  /**
+   * 播放/暂停切换
+   * 根据当前状态决定调用 play / pause / 重新设置播放源
+   */
   async togglePlayPause(): Promise<void> {
     if (this.isPlaying) {
       await this.playerService.pause();
@@ -121,12 +140,13 @@ export default class PlayerViewModel {
       if (this.playerState === 'paused') {
         await this.playerService.play();
       } else if ((this.playerState === 'completed' || this.playerState === 'stopped' || this.playerState === 'idle') && this.currentPlaySource) {
+        // 播放完成或停止后重新设置播放源
         this.playerService.setUrl(this.currentPlaySource.fdUrl);
       }
     }
   }
 
-  // 格式化时间
+  // 毫秒 → mm:ss 格式化
   formatTime(milliseconds: number): string {
     if (milliseconds <= 0) return '00:00';
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -135,13 +155,17 @@ export default class PlayerViewModel {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
 
-  // 进度条拖拽开始
-  onDragStart(): void {
-    this.isDragging = true;
-    console.info('开始拖拽进度条');
+  // 跳转到指定时间位置（供 PlayerPage 的 Slider 使用）
+  async seek(targetTime: number): Promise<void> {
+    await this.playerService.seek(targetTime);
   }
 
-  // 进度条拖拽中
+  // 进度条拖拽开始：锁定进度更新，避免 timeUpdate 覆盖拖拽值
+  onDragStart(): void {
+    this.isDragging = true;
+  }
+
+  // 进度条拖拽中：实时更新进度和预览时间
   onDragMove(value: number): void {
     if (!this.isDragging) return;
     this.progressValue = value;
@@ -149,37 +173,36 @@ export default class PlayerViewModel {
     this.currentTime = targetTime;
   }
 
-  // 进度条拖拽结束
+  /**
+   * 进度条拖拽结束
+   * - 拖到末尾（≥98%）触发播放完成逻辑
+   * - 有效状态内执行 seek 跳转
+   * - completed 状态拖拽时重新设置播放源再 seek
+   */
   async onDragEnd(value: number): Promise<void> {
-    // 【关键修复】如果拖拽到了末尾（超过98%），自动触发完成状态
+    // 拖拽到末尾（超过98%），自动触发完成状态
     if (value >= 98 && this.duration > 0) {
       console.info('拖拽到视频末尾，触发完成状态');
       this.isDragging = false;
-
-      // 模拟播放完成
       this.playerState = 'completed';
       this.isPlaying = false;
       this.message = '播放完成，已重置';
-
-      // 自动重置播放器
       await this.playerService.reset();
-
-      // 更新进度到末尾
       this.currentTime = this.duration;
       this.progressValue = 100;
       return;
     }
+
     // 检查播放器是否处于可跳转的状态
     const validSeekStates = ['playing', 'paused', 'prepared', 'idle'];
     if (!validSeekStates.includes(this.playerState)) {
       console.warn(`当前状态 ${this.playerState} 不支持跳转`);
       this.isDragging = false;
 
-      // 如果是完成状态，允许重新开始
+      // completed 状态下拖拽：重新设置播放源后再 seek
       if (this.playerState === 'completed' && this.currentPlaySource) {
         console.info('从完成状态重新开始播放');
         this.playerService.setUrl(this.currentPlaySource.fdUrl);
-        // 稍等片刻让播放器准备好
         setTimeout(async () => {
           await this.playerService.seek(Math.floor((value / 100) * this.duration));
         }, 100);
@@ -193,12 +216,12 @@ export default class PlayerViewModel {
     await this.playerService.seek(targetTime);
   }
 
-  // 清理资源
+  // 释放所有资源（页面销毁时调用）
   release(): void {
     this.playerService.release();
   }
 
-  // 获取是否有当前播放源
+  // 是否有当前播放源（用于启用/禁用播放按钮）
   hasCurrentPlaySource(): boolean {
     return !!this.currentPlaySource;
   }
