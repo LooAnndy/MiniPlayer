@@ -275,10 +275,23 @@ export struct SearchPage {
     this.isLoading = false;
   }
 
-  private playSong(song: Song): void {
+  private async playSong(song: Song): Promise<void> {
     this.currentPlayingId = song.id;
     this.currentSong = song;
     this.onPlaySong(song);
+
+    // 网易云平台：获取流播放地址并开始播放
+    if (this.platform === Platform.NETEASE) {
+      this.viewModel.message = `正在获取播放地址: ${song.title}`;
+      // 默认音质：超高
+      const url = await netEaseService.getSongUrl(song.id);
+      if (url) {
+        song.audioUrl = url;
+        await this.viewModel.playStreamUrl(url);
+      } else {
+        this.viewModel.message = `无播放权限: ${song.title}（需在"我的"页配置 VIP Cookie）`;
+      }
+    }
   }
 
   private showMoreOptions(song: Song): void {

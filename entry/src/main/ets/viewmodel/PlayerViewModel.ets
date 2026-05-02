@@ -146,6 +146,20 @@ export default class PlayerViewModel {
     }
   }
 
+  /**
+   * 播放网络流 URL（网易云在线播放）
+   * 直接设置 https:// 地址，状态机自动触发 initialized → prepared → playing
+   */
+  async playStreamUrl(url: string): Promise<void> {
+    if (!url) {
+      this.message = '获取播放地址失败';
+      return;
+    }
+    this.message = '正在连接...';
+    this.playerService.setUrl(url);
+    this.isPlayed = true;
+  }
+
   // 毫秒 → mm:ss 格式化
   formatTime(milliseconds: number): string {
     if (milliseconds <= 0) return '00:00';
