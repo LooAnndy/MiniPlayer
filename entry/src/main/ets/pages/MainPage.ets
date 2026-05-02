@@ -8,7 +8,7 @@ import { PlayerBar } from '../view/PlayerBar';
 import PlayerViewModel from '../viewmodel/PlayerViewModel';
 import router from '@ohos.router';
 import { HomePage } from './HomePage';
-import { DownloadPage } from './DownloadPage';
+import { MinePage } from './MinePage';
 
 // Tab 配置
 const TAB_ITEMS: TabBarItem[] = [
@@ -65,9 +65,9 @@ export struct MainPage {
         }
         .tabBar(this.tabBarBuilder(2, TAB_ITEMS[2].name))
 
-        // Tab 4: 我的（占位页面）
+        // Tab 4: 我的（Cookie 配置页面）
         TabContent() {
-          this.placeholderPage('我的', '个人中心')
+          MinePage()
         }
         .tabBar(this.tabBarBuilder(3, TAB_ITEMS[3].name))
       }

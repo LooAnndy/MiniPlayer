@@ -6,6 +6,7 @@
 import { Song, Platform } from '../model/Song';
 import { SongItem } from '../view/SongItem';
 import PlayerViewModel from '../viewmodel/PlayerViewModel';
+import { netEaseService } from '../service/NetEaseService';
 
 // 顶部分类项
 interface CategoryItem {
@@ -246,18 +247,32 @@ export struct SearchPage {
     .backgroundColor('#F4F6F9')
   }
 
-  private performSearch(): void {
+  private async performSearch(): Promise<void> {
     if (this.keyword.trim() === '') return;
     this.showHistory = false;
     this.isLoading = true;
-    this.onSearch(this.keyword, this.platform);
-    setTimeout(() => {
-      this.isLoading = false;
-      this.searchResults = [];
-    }, 500);
+
+    // 保存搜索历史（去重，最多 10 条）
     if (!this.searchHistory.includes(this.keyword)) {
       this.searchHistory = [this.keyword, ...this.searchHistory].slice(0, 10);
     }
+
+    // 通知父组件
+    this.onSearch(this.keyword, this.platform);
+
+    // 根据平台调用对应 API
+    if (this.platform === Platform.NETEASE) {
+      try {
+        this.searchResults = await netEaseService.search(this.keyword, 30);
+      } catch (err) {
+        console.error('搜索失败:', JSON.stringify(err));
+        this.searchResults = [];
+      }
+    } else {
+      // 其他平台暂未接入
+      this.searchResults = [];
+    }
+    this.isLoading = false;
   }
 
   private playSong(song: Song): void {
