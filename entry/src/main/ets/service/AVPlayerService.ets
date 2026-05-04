@@ -61,13 +61,27 @@ export class AVPlayerService {
     });
   }
 
-  // 设置播放源 URL（支持 fd:// 本地文件和 https:// 网络流）
+  // 设置播放源 URL（普通流：网易云/QQ，URL 自身含鉴权参数）
   async setUrl(url: string) {
     if (!this.avPlayer) return;
     try {
       this.avPlayer.url = url;
     } catch (err) {
-      console.error('Failed to set url, error message is :' + (err as BusinessError).message);
+      console.error('Failed to set url:', (err as BusinessError).message);
+    }
+  }
+
+  /**
+   * 设置带鉴权头的播放源（B站等需要 Referer 的 CDN）
+   * 通过 createMediaSourceWithUrl 传递 HTTP 请求头，满足 CDN 鉴权
+   */
+  async setUrlWithHeaders(url: string, headers: Record<string, string>) {
+    if (!this.avPlayer) return;
+    try {
+      const mediaSrc = media.createMediaSourceWithUrl(url, headers);
+      this.avPlayer.setMediaSource(mediaSrc);
+    } catch (err) {
+      console.error('Failed to set url with headers:', (err as BusinessError).message);
     }
   }
 

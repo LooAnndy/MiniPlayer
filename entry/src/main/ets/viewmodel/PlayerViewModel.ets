@@ -22,6 +22,7 @@ export default class PlayerViewModel {
   private playerService: AVPlayerService = new AVPlayerService();
   private fileService: FileService = new FileService();
   private currentPlaySource: PlaySource | null = null;
+  private lastStreamUrl: string = '';
 
   /**
    * 初始化播放器：创建 AVPlayer 实例并绑定状态回调
@@ -139,9 +140,9 @@ export default class PlayerViewModel {
     } else {
       if (this.playerState === 'paused') {
         await this.playerService.play();
-      } else if ((this.playerState === 'completed' || this.playerState === 'stopped' || this.playerState === 'idle') && this.currentPlaySource) {
-        // 播放完成或停止后重新设置播放源
-        this.playerService.setUrl(this.currentPlaySource.fdUrl);
+      } else if (this.playerState === 'completed' || this.playerState === 'stopped' || this.playerState === 'idle') {
+        if (this.lastStreamUrl) { this.playerService.setUrl(this.lastStreamUrl); }
+        else if (this.currentPlaySource) { this.playerService.setUrl(this.currentPlaySource.fdUrl); }
       }
     }
   }
@@ -151,13 +152,34 @@ export default class PlayerViewModel {
    * 直接设置 https:// 地址，状态机自动触发 initialized → prepared → playing
    */
   async playStreamUrl(url: string): Promise<void> {
-    if (!url) {
-      this.message = '获取播放地址失败';
-      return;
-    }
+    if (!url) { this.message = '获取播放地址失败'; return; }
     this.message = '正在连接...';
+    // 切歌：先停止当前播放，再设置新源
+    await this.stopCurrentIfNeeded();
+    this.lastStreamUrl = url;
     this.playerService.setUrl(url);
     this.isPlayed = true;
+  }
+
+  /** 播放需鉴权的流（B站 CDN 需 Referer） */
+  async playStreamUrlWithHeaders(url: string, headers: Record<string, string>): Promise<void> {
+    if (!url) { this.message = '获取播放地址失败'; return; }
+    this.message = '正在连接...';
+    await this.stopCurrentIfNeeded();
+    this.lastStreamUrl = url;
+    this.playerService.setUrlWithHeaders(url, headers);
+    this.isPlayed = true;
+  }
+
+  // 如果正在播放，先停止并重置到 idle，确保能干净设置新 URL
+  private async stopCurrentIfNeeded(): Promise<void> {
+    if (this.playerState === 'idle' || this.playerState === 'released') return;
+    try {
+      await this.playerService.stop();
+      await this.playerService.reset();
+    } catch (e) {
+      // reset 可能失败（如 released 状态），忽略
+    }
   }
 
   // 毫秒 → mm:ss 格式化

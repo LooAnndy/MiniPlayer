@@ -207,7 +207,16 @@ export struct SearchPage {
     }
     if (url) {
       song.audioUrl = url;
-      await this.viewModel.playStreamUrl(url);
+      // B站 CDN 需 Referer 鉴权，通过 createMediaSourceWithUrl 传递 header
+      if (song.platform === Platform.BILIBILI) {
+        const biliHeaders: Record<string, string> = {
+          'Referer': 'https://www.bilibili.com/',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'
+        };
+        await this.viewModel.playStreamUrlWithHeaders(url, biliHeaders);
+      } else {
+        await this.viewModel.playStreamUrl(url);
+      }
     } else {
       this.viewModel.message = `无播放权限: ${song.title}`;
     }
