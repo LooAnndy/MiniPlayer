@@ -67,7 +67,7 @@ export struct MainPage {
         this.currentTab = index;
       })
 
-      // PlayerBar 紧贴 TabBar 上方（交互逻辑内聚在 PlayerBar 内部）
+      // PlayerBar 紧贴 TabBar 上方
       if (this.viewModel.isPlayed) {
         PlayerBar({
           viewModel: this.viewModel,

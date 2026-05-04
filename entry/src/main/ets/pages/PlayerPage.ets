@@ -1,10 +1,10 @@
 /**
- * 全屏播放详情页 —— 对齐 UI_STRUCTURE.md §3.7 FavoriteMusicPage
+ * 全屏播放详情页
  * 黑胶唱片沉浸播放体验：模糊封面背景、唱针动画、旋转唱片、播放控制
  */
 import { Song } from '../model/Song';
 import PlayerViewModel from '../viewmodel/PlayerViewModel';
-import router from '@ohos.router';
+import { Router, UIContext } from '@kit.ArkUI';
 
 @Entry
 @ComponentV2
@@ -59,6 +59,15 @@ export struct PlayerPage {
           .type(ButtonType.Normal)
           .backgroundColor(Color.Transparent)
           .onClick(() => {
+            const uiContext: UIContext = this.getUIContext();
+            const router: Router = uiContext.getRouter();
+
+            let stackSize = router.getStackSize();
+            // 没有上一页可以返回
+            if (stackSize <= 1) {
+              console.warn('PlayerBar No previous page in the stack to go back to.');
+              return;
+            }
             router.back();
           })
 

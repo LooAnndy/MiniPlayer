@@ -4,7 +4,7 @@
  */
 import { Song } from '../model/Song';
 import PlayerViewModel from '../viewmodel/PlayerViewModel';
-import router from '@ohos.router';
+import { Router, UIContext } from '@kit.ArkUI';
 
 @ComponentV2
 export struct PlayerBar {
@@ -52,7 +52,12 @@ export struct PlayerBar {
           .alignItems(HorizontalAlign.Start)
         }
         .layoutWeight(1)
-        .onClick(() => { router.pushUrl({ url: 'pages/PlayerPage' }); })
+        .onClick(() => {
+          const uiContext: UIContext = this.getUIContext();
+          const router: Router = uiContext.getRouter();
+          console.log("PlayerBar has been clicked")
+          router.pushUrl({ url: 'pages/PlayerPage' });
+        })
 
         // 环形进度 + 播放按钮
         Stack() {
