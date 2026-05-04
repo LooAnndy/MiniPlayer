@@ -7,6 +7,7 @@ import { initCookieStorage, loadCookie } from '../utils/CookieStorage';
 import { Platform } from '../model/Song';
 import { netEaseService } from '../service/NetEaseService';
 import { qqMusicService } from '../service/QQMusicService';
+import { bilibiliService } from '../service/BilibiliService';
 
 @Entry
 @ComponentV2
@@ -20,7 +21,7 @@ struct Index {
     // 初始化 Cookie 持久化存储，恢复三平台已保存的 Cookie
     initCookieStorage(getContext(this)).then(() => {
       loadCookie(Platform.NETEASE).then((c) => { if (c) { netEaseService.setCookie(c); } });
-      loadCookie(Platform.BILIBILI).then((c) => { if (c) { console.info('已恢复 Bilibili Cookie'); } });
+      loadCookie(Platform.BILIBILI).then((c) => { if (c) { bilibiliService.setCookie(c); } });
       loadCookie(Platform.QQ).then((c) => { if (c) { qqMusicService.setCookie(c); } });
     });
 

@@ -64,43 +64,93 @@ export class AVPlayerService {
   // 设置播放源 URL（支持 fd:// 本地文件和 https:// 网络流）
   async setUrl(url: string) {
     if (!this.avPlayer) return;
-    this.avPlayer.url = url;
+    try {
+      this.avPlayer.url = url;
+    } catch (err) {
+      console.error('Failed to set url, error message is :' + (err as BusinessError).message);
+    }
   }
 
   // 准备播放：由 initialized 状态触发
   async prepare() {
     if (!this.avPlayer) return;
-    await this.avPlayer.prepare();
+    try {
+      await this.avPlayer.prepare();
+      console.info('Succeeded in preparing');
+    } catch (err) {
+      console.error('Failed to prepare, error message is :' + (err as BusinessError).message);
+      // 异常时重置播放器，以便重新设置资源
+      this.avPlayer?.reset();
+    }
   }
 
   // 开始播放：仅 prepared / paused / stopped / completed 状态有效
   async play() {
     if (!this.avPlayer) return;
-    await this.avPlayer.play();
+    try {
+      await this.avPlayer.play();
+      console.info('Succeeded in playing');
+    } catch (err) {
+      console.error('Failed to play, error message is :' + (err as BusinessError).message);
+    }
   }
 
   // 暂停播放
   async pause() {
     if (!this.avPlayer) return;
-    await this.avPlayer.pause();
+    try {
+      await this.avPlayer.pause();
+      console.info('Succeeded in pausing');
+    } catch (err) {
+      console.error('Failed to pause, error message is :' + (err as BusinessError).message);
+    }
   }
 
   // 停止播放（回退到 prepared 状态，再次 play 从头开始）
   async stop() {
     if (!this.avPlayer) return;
-    await this.avPlayer.stop();
+    try {
+      await this.avPlayer.stop();
+      console.info('Succeeded in stopping');
+    } catch (err) {
+      console.error('Failed to stop, error message is :' + (err as BusinessError).message);
+    }
   }
 
   // 重置播放器（回到 idle 状态）
   async reset() {
     if (!this.avPlayer) return;
-    await this.avPlayer.reset();
+    try {
+      await this.avPlayer.reset();
+      console.info('Succeeded in resetting');
+    } catch (err) {
+      console.error('Failed to reset, error message is :' + (err as BusinessError).message);
+    }
   }
 
   // 跳转到指定位置（毫秒）
   async seek(position: number) {
     if (!this.avPlayer) return;
-    await this.avPlayer.seek(position);
+    try {
+      // seek 使用 callback 方式，不返回 Promise，但官方示例中同样需要异常处理
+      this.avPlayer.seek(position);
+      console.info('Succeeded in seeking');
+    } catch (err) {
+      console.error('Failed to seek, error message is :' + (err as BusinessError).message);
+    }
+  }
+
+  // 释放播放器资源（退出页面时调用）
+  async release() {
+    if (!this.avPlayer) return;
+    try {
+      await this.avPlayer.release();
+      console.info('Succeeded in releasing');
+      this.avPlayer = null;
+    } catch (err) {
+      console.error('Failed to release, error message is :' + (err as BusinessError).message);
+      this.avPlayer = null;
+    }
   }
 
   // 获取当前播放器状态
@@ -116,12 +166,5 @@ export class AVPlayerService {
   // 获取总时长（毫秒）
   getDuration(): number {
     return this.avPlayer?.duration || 0;
-  }
-
-  // 释放播放器资源（退出页面时调用）
-  async release() {
-    if (!this.avPlayer) return;
-    await this.avPlayer.release();
-    this.avPlayer = null;
   }
 }

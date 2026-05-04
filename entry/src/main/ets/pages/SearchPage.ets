@@ -8,6 +8,7 @@ import { SongItem } from '../view/SongItem';
 import PlayerViewModel from '../viewmodel/PlayerViewModel';
 import { netEaseService } from '../service/NetEaseService';
 import { qqMusicService } from '../service/QQMusicService';
+import { bilibiliService } from '../service/BilibiliService';
 
 // 搜索源配置
 interface SearchSource {
@@ -178,6 +179,8 @@ export struct SearchPage {
         this.searchResults = await netEaseService.search(this.keyword, 30);
       } else if (this.activeSource === Platform.QQ) {
         this.searchResults = await qqMusicService.search(this.keyword, 20);
+      } else if (this.activeSource === Platform.BILIBILI) {
+        this.searchResults = await bilibiliService.search(this.keyword, 20);
       } else {
         this.searchResults = [];
       }
@@ -199,6 +202,8 @@ export struct SearchPage {
       url = await netEaseService.getSongUrl(song.id);
     } else if (song.platform === Platform.QQ && song.sourceId) {
       url = await qqMusicService.getSongUrl(song.sourceId);
+    } else if (song.platform === Platform.BILIBILI && song.sourceId) {
+      url = await bilibiliService.getAudioUrl(song.sourceId);
     }
     if (url) {
       song.audioUrl = url;

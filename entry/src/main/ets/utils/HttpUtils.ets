@@ -41,6 +41,22 @@ export class HttpUtils {
    * POST form-urlencoded 请求（对应网易云搜索等常规 API）
    * extraData 按 key1=value1&key2=value2 编码为字符串
    */
+  // GET 返回原始字符串（用于 HTML 解析等非 JSON 响应，不经过 JSON.parse）
+  async getRaw(url: string, headers: Object): Promise<string> {
+    const response: http.HttpResponse = await this.httpClient.request(url, {
+      method: http.RequestMethod.GET,
+      header: headers,
+      expectDataType: http.HttpDataType.STRING,
+      connectTimeout: 60000,
+      readTimeout: 60000
+    });
+    const code = typeof response.responseCode === 'number' ? response.responseCode : 0;
+    console.info(`HTTP ${code}: ${url}`);
+    // 直接返回原始字符串，不做 JSON 解析
+    if (typeof response.result === 'string') return response.result;
+    return String(response.result);
+  }
+
   // GET 请求
   async get<T>(url: string, headers: Object): Promise<T> {
     return this.request<T>(url, {

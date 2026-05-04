@@ -34,7 +34,7 @@ export interface AlbumItem {
   mark: number;
 }
 
-// 歌曲详情（对齐网易云 SongItem）
+// 歌曲详情
 export interface Song {
   id: number;
   name: string;
@@ -100,7 +100,7 @@ export const PLATFORM_LIST: PlatformInfo[] = [
   }
 ];
 
-// Tab 栏项（对齐文档 TabBarItem）
+// Tab 栏项
 export interface TabBarItem {
   id: string;
   name: string;
@@ -108,13 +108,13 @@ export interface TabBarItem {
   selectedColor: ResourceColor;
 }
 
-// 分段选择器项（对齐文档 SegmentItem）
+// 分段选择器项
 export interface SegmentItem {
   id: string;
   name: string;
 }
 
-// 横向列表基础实体（对齐文档 RowEntity）
+// 横向列表基础实体
 export interface RowEntity {
   id: string | number;
   title: string;
@@ -122,7 +122,7 @@ export interface RowEntity {
   description: string;
 }
 
-// 推荐歌单项（对齐文档 RecommendItem）
+// 推荐歌单项
 export interface RecommendItem extends RowEntity {
   type: number;
   canDislike: boolean;
@@ -130,7 +130,7 @@ export interface RecommendItem extends RowEntity {
   song?: Song;
 }
 
-// 横幅项（对齐文档 BannerItem）
+// 横幅项
 export interface BannerItem {
   bannerId: string;
   pic: string;
@@ -138,7 +138,7 @@ export interface BannerItem {
   url: string;
 }
 
-// 全局播放状态（对齐文档 MusicPlaybackState）
+// 全局播放状态
 export class MusicPlaybackState {
   cover: string = '';
   name: string = '';

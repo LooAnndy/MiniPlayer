@@ -4,6 +4,7 @@
  */
 import { netEaseService } from '../service/NetEaseService';
 import { qqMusicService } from '../service/QQMusicService';
+import { bilibiliService } from '../service/BilibiliService';
 import { saveCookie, loadCookie } from '../utils/CookieStorage';
 import { Platform, PLATFORM_LIST, PlatformInfo } from '../model/Song';
 
@@ -17,7 +18,7 @@ interface CookieState {
 }
 
 function platformSupportsTest(p: Platform): boolean {
-  return p === Platform.NETEASE || p === Platform.QQ;
+  return p === Platform.NETEASE || p === Platform.QQ || p === Platform.BILIBILI;
 }
 
 @ComponentV2
@@ -33,7 +34,7 @@ export struct MinePage {
     // 恢复持久化Cookie，支持测试的平台自动验证
     this.restoreCookie(Platform.NETEASE, this.stateNetease, true);
     this.restoreCookie(Platform.QQ, this.stateQQ, true);
-    this.restoreCookie(Platform.BILIBILI, this.stateBilibili, false);
+    this.restoreCookie(Platform.BILIBILI, this.stateBilibili, true);
   }
 
   build() {
@@ -178,10 +179,11 @@ export struct MinePage {
     let ok = false;
     if (p === Platform.NETEASE) { ok = await netEaseService.testCookie(); }
     else if (p === Platform.QQ) { ok = await qqMusicService.testCookie(); }
+    else if (p === Platform.BILIBILI) { ok = await bilibiliService.testCookie(); }
     this.updateTestState(p, false, ok ? '连接正常' : '连接失败', ok ? '#4CAF50' : '#F44336', true, ok);
   }
 
-  // 创建新的 CookieState（手动逐字段赋值，ArkTS 禁止对象展开）
+  // 创建新的 CookieState
   private copyState(old: CookieState, input: string, status: string, color: string, testing: boolean, tested: boolean, ok: boolean): CookieState {
     const s: CookieState = { input: input, status: status, statusColor: color, testing: testing, tested: tested, testOk: ok };
     return s;
@@ -199,5 +201,6 @@ export struct MinePage {
   private syncCookieToService(p: Platform, cookie: string): void {
     if (p === Platform.NETEASE) { netEaseService.setCookie(cookie); }
     else if (p === Platform.QQ) { qqMusicService.setCookie(cookie); }
+    else if (p === Platform.BILIBILI) { bilibiliService.setCookie(cookie); }
   }
 }
