@@ -83,7 +83,7 @@ struct Index {
         .height('100%')
       } else {
         // 主页面壳（4 个 Tab + 全局 PlayerBar）
-        MainPage({ navPathStack: this.navPathStack })
+        MainPage()
       }
     }
     .mode(NavigationMode.Stack)

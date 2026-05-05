@@ -4,15 +4,14 @@
  *   模糊封面背景、方形封面（MusicInfoComponent）、收藏按钮、
  *   功能图标栏 + 进度条 + 播放控制（ControlAreaComponent）
  */
-import { Song } from '../model/Song';
-import PlayerViewModel from '../viewmodel/PlayerViewModel';
+import { Song, Platform } from '../model/Song';
 import { Router, UIContext } from '@kit.ArkUI';
+import { playerState } from '../common/PlayerStateCenter';
 
 @Entry
 @ComponentV2
 export struct PlayerPage {
-  @Param viewModel: PlayerViewModel = new PlayerViewModel();
-  @Local currentSong?: Song;
+  @Local currentSong: Song = playerState.currentSong;
   @Local playlist: Song[] = [];
   @Local currentIndex: number = 0;
   @Local showPlaylist: boolean = false;
@@ -31,12 +30,13 @@ export struct PlayerPage {
   @Local showVolumePanel: boolean = false;
 
   aboutToAppear(): void {
-    this.viewModel.initPlayer();
+    // 从中间件同步播放状态（播放器由中间件管理生命周期）
+    playerState.init();
+    this.currentSong = playerState.currentSong;
+    if (playerState.viewModel.duration > 0) {
+      this.sliderValue = (playerState.viewModel.currentTime / playerState.viewModel.duration) * 100;
+    }
     this.updateSliderValue();
-  }
-
-  aboutToDisappear(): void {
-    this.viewModel.release();
   }
 
   build() {
@@ -95,7 +95,7 @@ export struct PlayerPage {
         // ========== 歌曲信息 + 收藏按钮
         Row({ space: 12 }) {
           Column({ space: 6 }) {
-            Text(this.currentSong?.title || this.viewModel.currentFileName || '未播放')
+            Text(this.currentSong?.title || playerState.viewModel.currentFileName || '未播放')
               .fontSize(22)
               .fontWeight(FontWeight.Bold)
               .fontColor(Color.White)
@@ -199,19 +199,19 @@ export struct PlayerPage {
                   this.isDragging = true;
                 } else if (mode === SliderChangeMode.End) {
                   this.isDragging = false;
-                  const targetTime = Math.floor((value / 100) * this.viewModel.duration);
-                  this.viewModel.seek(targetTime);
+                  const targetTime = Math.floor((value / 100) * playerState.viewModel.duration);
+                  playerState.viewModel.seek(targetTime);
                 }
               })
 
             Row({ space: 0 }) {
-              Text(this.viewModel.formatTime(this.viewModel.currentTime))
+              Text(playerState.viewModel.formatTime(playerState.viewModel.currentTime))
                 .fontSize(13)
                 .fontColor('rgba(255, 255, 255, 0.7)')
 
               Blank()
 
-              Text(this.viewModel.formatTime(this.viewModel.duration))
+              Text(playerState.viewModel.formatTime(playerState.viewModel.duration))
                 .fontSize(13)
                 .fontColor('rgba(255, 255, 255, 0.7)')
             }
@@ -241,7 +241,7 @@ export struct PlayerPage {
 
             // 上一首
             Button() {
-              Image($r('app.media.ic_public_forward'))
+              Image($r('app.media.ic_public_prev'))
                 .width(28)
                 .height(28)
                 .fillColor(Color.White)
@@ -253,16 +253,17 @@ export struct PlayerPage {
 
             // 播放/暂停（圆形主按钮，居中）
             Button() {
-              Image(this.viewModel.isPlaying ? $r('app.media.ic_play_all') : $r('app.media.ic_play'))
-                .width(64)
-                .height(64)
+              Image(playerState.viewModel.isPlaying
+                ? $r('sys.media.ohos_ic_public_pause')
+                : $r('sys.media.ohos_ic_public_play'))
+                .width(48)
+                .height(48)
                 .fillColor('#C20C0C')
             }
-            .backgroundColor(Color.Transparent)
-            .width(64)
-            .height(64)
+            .type(ButtonType.Circle).backgroundColor(Color.Transparent)
+            .width(64).height(64)
             .onClick(() => {
-              this.viewModel.togglePlayPause();
+              playerState.togglePlayPause();
             })
 
             // 下一首
@@ -489,8 +490,8 @@ export struct PlayerPage {
   }
 
   private updateSliderValue(): void {
-    if (!this.isDragging && this.viewModel.duration > 0) {
-      this.sliderValue = (this.viewModel.currentTime / this.viewModel.duration) * 100;
+    if (!this.isDragging && playerState.viewModel.duration > 0) {
+      this.sliderValue = (playerState.viewModel.currentTime / playerState.viewModel.duration) * 100;
     }
   }
 
