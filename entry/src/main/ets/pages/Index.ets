@@ -5,6 +5,10 @@
 import { MainPage } from './MainPage';
 import { initCookieStorage } from '../utils/CookieStorage';
 import { platformServiceRegistry } from '../service/PlatformService';
+// 触发模块级 platformServiceRegistry.register() 副作用，确保服务在 restoreAllCookies 前已注册
+import '../service/NetEaseService';
+import '../service/QQMusicService';
+import '../service/BilibiliService';
 
 @Entry
 @ComponentV2
