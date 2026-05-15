@@ -280,6 +280,7 @@ export struct HomePage {
     .justifyContent(FlexAlign.Center)
   }
 
+  // 子频道切换回调（占位 —— 后续接入各频道真实数据源）
   private onSegmentChange(index: number): void {
     console.info(`Segment changed to: ${SEGMENTS[index].name}`);
   }

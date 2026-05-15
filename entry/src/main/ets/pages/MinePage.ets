@@ -2,9 +2,7 @@
  * 我的页面 —— 三平台 Cookie 配置与测试
  * 加载时自动恢复Cookie并测试；«测试连接» 即保存+验证
  */
-import { netEaseService } from '../service/NetEaseService';
-import { qqMusicService } from '../service/QQMusicService';
-import { bilibiliService } from '../service/BilibiliService';
+import { platformServiceRegistry } from '../service/PlatformService';
 import { saveCookie, loadCookie } from '../utils/CookieStorage';
 import { Platform, PLATFORM_LIST, PlatformInfo } from '../model/Song';
 
@@ -17,24 +15,40 @@ interface CookieState {
   testOk: boolean;
 }
 
+// 将平台枚举与 CookieState 绑定，替代原本 3 个独立的 @Local 变量
+interface CookieStateEntry {
+  platform: Platform;
+  state: CookieState;
+}
+
 function platformSupportsTest(p: Platform): boolean {
   return p === Platform.NETEASE || p === Platform.QQ || p === Platform.BILIBILI;
 }
 
+function createDefaultCookieState(): CookieState {
+  const s: CookieState = {
+    input: '',
+    status: '未配置',
+    statusColor: '#999',
+    testing: false,
+    tested: false,
+    testOk: false
+  };
+  return s;
+}
+
 @ComponentV2
 export struct MinePage {
-  @Local stateNetease: CookieState =
-    { input: '', status: '未配置', statusColor: '#999', testing: false, tested: false, testOk: false };
-  @Local stateBilibili: CookieState =
-    { input: '', status: '未配置', statusColor: '#999', testing: false, tested: false, testOk: false };
-  @Local stateQQ: CookieState =
-    { input: '', status: '未配置', statusColor: '#999', testing: false, tested: false, testOk: false };
+  @Local cookieStates: CookieStateEntry[] = [
+    { platform: Platform.NETEASE, state: createDefaultCookieState() },
+    { platform: Platform.QQ, state: createDefaultCookieState() },
+    { platform: Platform.BILIBILI, state: createDefaultCookieState() }
+  ];
 
   aboutToAppear(): void {
-    // 恢复持久化Cookie，支持测试的平台自动验证
-    this.restoreCookie(Platform.NETEASE, this.stateNetease, true);
-    this.restoreCookie(Platform.QQ, this.stateQQ, true);
-    this.restoreCookie(Platform.BILIBILI, this.stateBilibili, true);
+    for (let i: number = 0; i < this.cookieStates.length; i++) {
+      this.restoreCookie(this.cookieStates[i].platform, true);
+    }
   }
 
   build() {
@@ -123,20 +137,38 @@ export struct MinePage {
     .backgroundColor(Color.White).margin({ left: 16, right: 16 })
   }
 
+  // 按平台查找 CookieState（纯迭代，无 if/else）
   private getState(p: Platform): CookieState {
-    if (p === Platform.NETEASE) return this.stateNetease;
-    if (p === Platform.BILIBILI) return this.stateBilibili;
-    return this.stateQQ;
+    for (let i: number = 0; i < this.cookieStates.length; i++) {
+      if (this.cookieStates[i].platform === p) {
+        return this.cookieStates[i].state;
+      }
+    }
+    return this.cookieStates[0].state;
   }
 
-  // 恢复Cookie：填入输入框 + 自动测试（通过整体替换对象触发 @Local 更新）
-  private restoreCookie(p: Platform, s: CookieState, autoTest: boolean): void {
-    loadCookie(p).then((cookie) => {
+  // 更新单个平台的 CookieState：生成新数组触发 @Local 响应
+  private updateState(p: Platform, updater: (oldState: CookieState) => CookieState): void {
+    const newList: CookieStateEntry[] = [];
+    for (let i: number = 0; i < this.cookieStates.length; i++) {
+      const entry: CookieStateEntry = this.cookieStates[i];
+      if (entry.platform === p) {
+        const newEntry: CookieStateEntry = { platform: entry.platform, state: updater(entry.state) };
+        newList.push(newEntry);
+      } else {
+        newList.push(entry);
+      }
+    }
+    this.cookieStates = newList;
+  }
+
+  private restoreCookie(p: Platform, autoTest: boolean): void {
+    loadCookie(p).then((cookie: string) => {
       if (cookie) {
         this.setCookieInput(p, cookie);
         this.syncCookieToService(p, cookie);
         if (autoTest) {
-          this.runTest(p, this.getState(p));
+          this.runTest(p);
         } else {
           this.updateStatus(p, '已保存', '#4CAF50');
         }
@@ -144,22 +176,50 @@ export struct MinePage {
     });
   }
 
-  // 更新输入框（手动逐字段赋值，ArkTS 禁止对象展开）
   private setCookieInput(p: Platform, value: string): void {
-    if (p === Platform.NETEASE) { this.stateNetease = this.copyState(this.stateNetease, value, this.stateNetease.status, this.stateNetease.statusColor, this.stateNetease.testing, this.stateNetease.tested, this.stateNetease.testOk); }
-    else if (p === Platform.BILIBILI) { this.stateBilibili = this.copyState(this.stateBilibili, value, this.stateBilibili.status, this.stateBilibili.statusColor, this.stateBilibili.testing, this.stateBilibili.tested, this.stateBilibili.testOk); }
-    else { this.stateQQ = this.copyState(this.stateQQ, value, this.stateQQ.status, this.stateQQ.statusColor, this.stateQQ.testing, this.stateQQ.tested, this.stateQQ.testOk); }
+    this.updateState(p, (s: CookieState): CookieState => {
+      const ns: CookieState = {
+        input: value,
+        status: s.status,
+        statusColor: s.statusColor,
+        testing: s.testing,
+        tested: s.tested,
+        testOk: s.testOk
+      };
+      return ns;
+    });
   }
 
-  // 更新状态（手动逐字段赋值）
   private updateStatus(p: Platform, status: string, color: string): void {
-    if (p === Platform.NETEASE) { this.stateNetease = this.copyState(this.stateNetease, this.stateNetease.input, status, color, this.stateNetease.testing, this.stateNetease.tested, this.stateNetease.testOk); }
-    else if (p === Platform.BILIBILI) { this.stateBilibili = this.copyState(this.stateBilibili, this.stateBilibili.input, status, color, this.stateBilibili.testing, this.stateBilibili.tested, this.stateBilibili.testOk); }
-    else { this.stateQQ = this.copyState(this.stateQQ, this.stateQQ.input, status, color, this.stateQQ.testing, this.stateQQ.tested, this.stateQQ.testOk); }
+    this.updateState(p, (s: CookieState): CookieState => {
+      const ns: CookieState = {
+        input: s.input,
+        status: status,
+        statusColor: color,
+        testing: s.testing,
+        tested: s.tested,
+        testOk: s.testOk
+      };
+      return ns;
+    });
+  }
+
+  private updateTestState(p: Platform, testing: boolean, status: string, color: string, tested: boolean, ok: boolean): void {
+    this.updateState(p, (s: CookieState): CookieState => {
+      const ns: CookieState = {
+        input: s.input,
+        status: status,
+        statusColor: color,
+        testing: testing,
+        tested: tested,
+        testOk: ok
+      };
+      return ns;
+    });
   }
 
   private async handleSave(p: Platform): Promise<void> {
-    const cookie = this.getState(p).input.trim();
+    const cookie: string = this.getState(p).input.trim();
     if (!cookie) { this.updateStatus(p, '未配置', '#999'); return; }
     await saveCookie(p, cookie);
     this.syncCookieToService(p, cookie);
@@ -167,40 +227,23 @@ export struct MinePage {
   }
 
   private async handleTest(p: Platform): Promise<void> {
-    const cookie = this.getState(p).input.trim();
+    const cookie: string = this.getState(p).input.trim();
     if (!cookie) { this.updateStatus(p, '未配置', '#999'); return; }
     await saveCookie(p, cookie);
     this.syncCookieToService(p, cookie);
-    await this.runTest(p, this.getState(p));
+    await this.runTest(p);
   }
 
-  private async runTest(p: Platform, s: CookieState): Promise<void> {
+  private async runTest(p: Platform): Promise<void> {
     this.updateTestState(p, true, '检测中...', '#FF9800', false, false);
-    let ok = false;
-    if (p === Platform.NETEASE) { ok = await netEaseService.testCookie(); }
-    else if (p === Platform.QQ) { ok = await qqMusicService.testCookie(); }
-    else if (p === Platform.BILIBILI) { ok = await bilibiliService.testCookie(); }
+    const ok: boolean = await platformServiceRegistry.testCookie(p);
     this.updateTestState(p, false, ok ? '连接正常' : '连接失败', ok ? '#4CAF50' : '#F44336', true, ok);
   }
 
-  // 创建新的 CookieState
-  private copyState(old: CookieState, input: string, status: string, color: string, testing: boolean, tested: boolean, ok: boolean): CookieState {
-    const s: CookieState = { input: input, status: status, statusColor: color, testing: testing, tested: tested, testOk: ok };
-    return s;
-  }
-
-  // 更新测试状态
-  private updateTestState(p: Platform, testing: boolean, status: string, color: string, tested: boolean, ok: boolean): void {
-    const s = this.getState(p);
-    const ns = this.copyState(s, s.input, status, color, testing, tested, ok);
-    if (p === Platform.NETEASE) { this.stateNetease = ns; }
-    else if (p === Platform.BILIBILI) { this.stateBilibili = ns; }
-    else { this.stateQQ = ns; }
-  }
-
   private syncCookieToService(p: Platform, cookie: string): void {
-    if (p === Platform.NETEASE) { netEaseService.setCookie(cookie); }
-    else if (p === Platform.QQ) { qqMusicService.setCookie(cookie); }
-    else if (p === Platform.BILIBILI) { bilibiliService.setCookie(cookie); }
+    const svc = platformServiceRegistry.get(p);
+    if (svc) {
+      svc.setCookie(cookie);
+    }
   }
 }

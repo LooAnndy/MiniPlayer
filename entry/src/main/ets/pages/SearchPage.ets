@@ -6,9 +6,7 @@
 import { Song, Platform } from '../model/Song';
 import { SongItem } from '../view/SongItem';
 import PlayerViewModel from '../viewmodel/PlayerViewModel';
-import { netEaseService } from '../service/NetEaseService';
-import { qqMusicService } from '../service/QQMusicService';
-import { bilibiliService } from '../service/BilibiliService';
+import { platformServiceRegistry, SongUrlResult } from '../service/PlatformService';
 
 // 搜索源配置
 interface SearchSource {
@@ -175,15 +173,7 @@ export struct SearchPage {
     this.onSearch(this.keyword, this.activeSource);
 
     try {
-      if (this.activeSource === Platform.NETEASE) {
-        this.searchResults = await netEaseService.search(this.keyword, 30);
-      } else if (this.activeSource === Platform.QQ) {
-        this.searchResults = await qqMusicService.search(this.keyword, 20);
-      } else if (this.activeSource === Platform.BILIBILI) {
-        this.searchResults = await bilibiliService.search(this.keyword, 20);
-      } else {
-        this.searchResults = [];
-      }
+      this.searchResults = await platformServiceRegistry.search(this.activeSource, this.keyword, 30);
     } catch (err) {
       console.error('搜索失败:', JSON.stringify(err));
       this.searchResults = [];
@@ -197,25 +187,14 @@ export struct SearchPage {
     this.onPlaySong(song);
 
     this.viewModel.message = `正在获取播放地址: ${song.title}`;
-    let url = '';
-    if (song.platform === Platform.NETEASE) {
-      url = await netEaseService.getSongUrl(song.id);
-    } else if (song.platform === Platform.QQ && song.sourceId) {
-      url = await qqMusicService.getSongUrl(song.sourceId);
-    } else if (song.platform === Platform.BILIBILI && song.sourceId) {
-      url = await bilibiliService.getAudioUrl(song.sourceId);
-    }
-    if (url) {
-      song.audioUrl = url;
-      // B站 CDN 需 Referer 鉴权，通过 createMediaSourceWithUrl 传递 header
-      if (song.platform === Platform.BILIBILI) {
-        const biliHeaders: Record<string, string> = {
-          'Referer': 'https://www.bilibili.com/',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'
-        };
-        await this.viewModel.playStreamUrlWithHeaders(url, biliHeaders);
+    const sourceId: string = song.sourceId ? song.sourceId : String(song.id);
+    const urlResult: SongUrlResult = await platformServiceRegistry.getSongUrl(song.platform, sourceId);
+    if (urlResult.url) {
+      song.audioUrl = urlResult.url;
+      if (urlResult.headers) {
+        await this.viewModel.playStreamUrlWithHeaders(urlResult.url, urlResult.headers);
       } else {
-        await this.viewModel.playStreamUrl(url);
+        await this.viewModel.playStreamUrl(urlResult.url);
       }
     } else {
       this.viewModel.message = `无播放权限: ${song.title}`;

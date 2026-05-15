@@ -6,6 +6,7 @@ import { Song, Platform } from '../model/Song';
 
 @ComponentV2
 export struct SongItem {
+  // ArkTS 边界情况：@Param 默认值允许对象字面量（编译器例外），其余场景禁止
   @Param song: Song = { id: 0, name: '', title: '', artist: '', album: '', duration: 0, audioUrl: '', platform: Platform.LOCAL };
   @Param isPlaying: boolean = false;
 

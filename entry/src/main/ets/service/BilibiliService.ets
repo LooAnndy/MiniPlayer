@@ -3,9 +3,13 @@
  * 基于 api-analysis/Bilibili/downloads_and_play_api.md
  *
  * 搜索: GET api.bilibili.com/x/web-interface/wbi/search/type?search_type=video&keyword=kw&tids=3
+ *
+ * KNOWN-DEBT: 与其他平台服务无统一接口。此外本服务的 getAudioUrl 返回的流地址
+ * 需携带 Referer 请求头才能访问 CDN，该 header 目前泄漏到 SearchPage.playSong() 中构造。
  */
 import { HttpUtils } from '../utils/HttpUtils';
 import { Song, Platform } from '../model/Song';
+import { PlatformService, SongUrlResult, platformServiceRegistry } from './PlatformService';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const REFERER = 'https://www.bilibili.com/';
@@ -86,7 +90,7 @@ interface BilibiliHeaders {
   'Cookie': string;
 }
 
-export class BilibiliService {
+export class BilibiliService implements PlatformService {
   private httpUtils: HttpUtils;
   private cookie: string;
 
@@ -124,14 +128,29 @@ export class BilibiliService {
   }
 
   /** 获取纯音频流地址（playurl DASH audio → AVPlayer 兼容的 .m4a） */
-  async getAudioUrl(bvid: string): Promise<string> {
+  async getSongUrl(sourceId: string): Promise<SongUrlResult> {
     try {
-      const cid = await this.getCid(bvid);
-      if (!cid) return '';
-      return await this.getDashAudio(bvid, cid);
+      const cid: number = await this.getCid(sourceId);
+      if (!cid) {
+        const empty: SongUrlResult = { url: '' };
+        return empty;
+      }
+      const audioUrl: string = await this.getDashAudio(sourceId, cid);
+      if (!audioUrl) {
+        const empty: SongUrlResult = { url: '' };
+        return empty;
+      }
+      // B站 CDN 要求 Referer 请求头 —— 随 URL 一并返回，页面层无需感知平台细节
+      const headers: Record<string, string> = {
+        'Referer': 'https://www.bilibili.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      };
+      const result: SongUrlResult = { url: audioUrl, headers: headers };
+      return result;
     } catch (e) {
       console.error('B站播放异常: ' + String(e));
-      return '';
+      const empty: SongUrlResult = { url: '' };
+      return empty;
     }
   }
 
@@ -208,3 +227,4 @@ export class BilibiliService {
 }
 
 export const bilibiliService = new BilibiliService('');
+platformServiceRegistry.register(Platform.BILIBILI, bilibiliService);

@@ -4,9 +4,13 @@
  * 所有接口统一 POST https://u.y.qq.com/cgi-bin/musicu.fcg (JSON)
  * 搜索: module=music.search.SearchCgiService, method=DoSearchForQQMusicMobile
  * 播放: module=music.vkey.GetVkey, method=UrlGetVkey
+ *
+ * KNOWN-DEBT: 与其他平台服务（NetEase/Bilibili）无统一接口，方法签名不一致。
+ * 见 NetEaseService.ets 头部注释。
  */
 import { HttpUtils } from '../utils/HttpUtils';
 import { Song, Platform } from '../model/Song';
+import { PlatformService, SongUrlResult, platformServiceRegistry } from './PlatformService';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const REFERER = 'https://y.qq.com/';
@@ -129,7 +133,7 @@ interface QQHeaders {
   'Content-Type'?: string;
 }
 
-export class QQMusicService {
+export class QQMusicService implements PlatformService {
   private httpUtils: HttpUtils;
   private cookie: string;
 
@@ -186,14 +190,18 @@ export class QQMusicService {
   }
 
   /** 获取播放地址（多音质降级: M800→M500→C400） */
-  async getSongUrl(songmid: string): Promise<string> {
+  async getSongUrl(sourceId: string): Promise<SongUrlResult> {
     // 音质降级: 320kbps → 128kbps → 96kbps AAC
     const tryQualities: string[] = ['M800', 'M500', 'C400'];
-    for (let qi = 0; qi < tryQualities.length; qi++) {
-      const url = await this.tryVkey(songmid, tryQualities[qi]);
-      if (url) return url;
+    for (let qi: number = 0; qi < tryQualities.length; qi++) {
+      const url: string = await this.tryVkey(sourceId, tryQualities[qi]);
+      if (url) {
+        const result: SongUrlResult = { url: url };
+        return result;
+      }
     }
-    return '';
+    const empty: SongUrlResult = { url: '' };
+    return empty;
   }
 
   private async tryVkey(songmid: string, code: string): Promise<string> {
@@ -282,3 +290,4 @@ export class QQMusicService {
 }
 
 export const qqMusicService = new QQMusicService('');
+platformServiceRegistry.register(Platform.QQ, qqMusicService);

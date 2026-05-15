@@ -10,8 +10,6 @@
 /.clang-tidy
 **/.test
 /.appanalyzer
-/api-analysis
 /plans
 /player-analysis
 UI_STRUCTURE.md
-/.claude/

@@ -8,10 +8,15 @@
  *   Body: s={keyword}&type=1&limit={limit}
  *   Headers: User-Agent (NeteaseMusicDesktop), Referer
  *   Cookie: MUSIC_U=...; os=pc; ...
+ *
+ * KNOWN-DEBT: 三平台服务（NetEase/QQ/Bilibili）未实现统一的 PlatformService 接口。
+ * 方法签名不一致：getSongUrl(id) vs getSongUrl(songmid) vs getAudioUrl(bvid)。
+ * SearchPage 和 MinePage 因此被迫使用 if/else 链分支。
  */
 import { HttpUtils } from '../utils/HttpUtils';
 import { eapiEncrypt } from '../utils/CryptoUtils';
 import { Song, Platform, ArtistItem, AlbumItem } from '../model/Song';
+import { PlatformService, SongUrlResult, platformServiceRegistry } from './PlatformService';
 
 // 网易云桌面端 User-Agent（必带，否则 API 拒绝请求）
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36 Chrome/91.0.4472.164 NeteaseMusicDesktop/2.10.2.200154';
@@ -101,7 +106,7 @@ interface HttpHeaders {
   'Content-Type'?: string;
 }
 
-export class NetEaseService {
+export class NetEaseService implements PlatformService {
   private httpUtils: HttpUtils;
   private cookie: string;
 
@@ -192,18 +197,19 @@ export class NetEaseService {
    * 获取歌曲流播放地址，支持多音质降级尝试
    * 优先请求 exhigh(320kbps)，失败降级到 standard(128kbps)
    */
-  async getSongUrl(songId: number): Promise<string> {
-    // 音质降级顺序：exhigh → standard（后者通常无需 VIP）
+  async getSongUrl(sourceId: string): Promise<SongUrlResult> {
+    const songId: number = parseInt(sourceId);
     const levels: string[] = ['exhigh', 'standard'];
-    for (let i = 0; i < levels.length; i++) {
-      const url = await this.tryGetUrl(songId, levels[i]);
+    for (let i: number = 0; i < levels.length; i++) {
+      const url: string = await this.tryGetUrl(songId, levels[i]);
       if (url) {
-        return url;
+        const result: SongUrlResult = { url: url };
+        return result;
       }
     }
-    // 所有音质均失败，可能无版权或 Cookie 无效
     console.warn(`获取播放地址失败: songId=${songId}, 所有音质均不可用`);
-    return '';
+    const empty: SongUrlResult = { url: '' };
+    return empty;
   }
 
   /**
@@ -298,3 +304,4 @@ function emptyAlbum(id: number, name: string, picUrl: string, artistName: string
 
 // 全局单例（SearchPage 和 MinePage 共享同一实例）
 export const netEaseService = new NetEaseService('os=pc; appver=8.9.70; osver=; deviceId=pyncm!');
+platformServiceRegistry.register(Platform.NETEASE, netEaseService);

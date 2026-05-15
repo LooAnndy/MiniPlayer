@@ -1,0 +1,3 @@
+- [Coupling Hotspots](coupling_hotspots.md) — SearchPage and MinePage if/else chains over Platform enum; 5-file change cost for new platform
+- [ArkTS Boundary Risks](arkts_boundary_risks.md) — Inline object literals in @Param defaults and class fields that may break on compiler update
+- [Platform Service Contracts](service_contracts.md) — Inconsistent method names (getSongUrl vs getAudioUrl) and parameter types across three services; no shared interface
