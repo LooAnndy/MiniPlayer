@@ -14,9 +14,8 @@ export class AVPlayerService {
   public onDurationUpdate?: (duration: number) => void;
   public onSeekDone?: () => void;
 
-  // 创建 AVPlayer 实例并注册状态机回调（幂等，避免重复创建导致播放中断）
+  // 创建 AVPlayer 实例并注册状态机回调
   async initPlayer() {
-    if (this.avPlayer) return;
     try {
       this.avPlayer = await media.createAVPlayer();
       this.setAVPlayerCallback();

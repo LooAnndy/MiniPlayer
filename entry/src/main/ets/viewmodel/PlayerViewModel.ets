@@ -134,16 +134,6 @@ export default class PlayerViewModel {
    * 播放/暂停切换
    * 根据当前状态决定调用 play / pause / 重新设置播放源
    */
-  /** 暂停 */
-  async pause(): Promise<void> {
-    await this.playerService.pause();
-  }
-
-  /** 播放 */
-  async play(): Promise<void> {
-    await this.playerService.play();
-  }
-
   async togglePlayPause(): Promise<void> {
     if (this.isPlaying) {
       await this.playerService.pause();

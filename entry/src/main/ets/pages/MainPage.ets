@@ -1,13 +1,13 @@
 /**
  * 主页面壳 —— 4 Tab + PlayerBar 紧贴 TabBar 上方
- * 通过 PlayerStateCenter 中间件统一管理播放状态
+ * 布局：Tab内容区 → PlayerBar → 自定义 TabBar
  */
 import { Platform, Song, TabBarItem } from '../model/Song';
 import { SearchPage } from './SearchPage';
 import { PlayerBar } from '../view/PlayerBar';
+import PlayerViewModel from '../viewmodel/PlayerViewModel';
 import { HomePage } from './HomePage';
 import { MinePage } from './MinePage';
-import { playerState } from '../common/PlayerStateCenter';
 
 const TAB_ITEMS: TabBarItem[] = [
   { id: '2025001', name: '首页', color: '#8E8E93', selectedColor: '#C20C0C' },
@@ -18,23 +18,27 @@ const TAB_ITEMS: TabBarItem[] = [
 
 @ComponentV2
 export struct MainPage {
+  @Param navPathStack: NavPathStack = new NavPathStack();
+  @Local viewModel: PlayerViewModel = new PlayerViewModel();
   @Local currentTab: number = 0;
+  @Local currentSong?: Song;
   private tabController: TabsController = new TabsController();
 
   aboutToAppear(): void {
-    playerState.init();
+    this.viewModel.initPlayer();
   }
 
   aboutToDisappear(): void {
-    playerState.release();
+    this.viewModel.release();
   }
 
   build() {
     Column() {
+      // Tab 内容区（隐藏内置 TabBar）
       Tabs({ index: this.currentTab, controller: this.tabController }) {
         TabContent() {
           HomePage({
-            viewModel: playerState.viewModel,
+            viewModel: this.viewModel,
             onPlaySong: this.handlePlaySong
           })
         }
@@ -42,7 +46,7 @@ export struct MainPage {
         TabContent() {
           SearchPage({
             platform: Platform.NETEASE,
-            viewModel: playerState.viewModel,
+            viewModel: this.viewModel,
             onSearch: this.handleSearch,
             onPlaySong: this.handlePlaySong
           })
@@ -63,10 +67,15 @@ export struct MainPage {
         this.currentTab = index;
       })
 
-      if (playerState.viewModel.isPlayed) {
-        PlayerBar()
+      // PlayerBar 紧贴 TabBar 上方
+      if (this.viewModel.isPlayed) {
+        PlayerBar({
+          viewModel: this.viewModel,
+          currentSong: this.currentSong
+        })
       }
 
+      // 自定义底部 TabBar
       Row({ space: 0 }) {
         ForEach(TAB_ITEMS, (item: TabBarItem, index: number) => {
           Column() {
@@ -96,10 +105,18 @@ export struct MainPage {
   @Builder
   placeholderPage(title: string, subtitle: string) {
     Column({ space: 16 }) {
-      Text(title).fontSize(18).fontWeight(FontWeight.Medium)
-      Text(subtitle).fontSize(14).fontColor('#999999')
+      Text(title)
+        .fontSize(18)
+        .fontWeight(FontWeight.Medium)
+
+      Text(subtitle)
+        .fontSize(14)
+        .fontColor('#999999')
     }
-    .width('100%').height('100%').justifyContent(FlexAlign.Center).backgroundColor(Color.White)
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .backgroundColor(Color.White)
   }
 
   private handleSearch = async (keyword: string, platform: Platform): Promise<void> => {
@@ -107,7 +124,8 @@ export struct MainPage {
   }
 
   private handlePlaySong = async (song: Song): Promise<void> => {
-    playerState.setCurrentSong(song);
+    this.currentSong = song;
+    this.viewModel.isPlayed = true;
     console.info(`Play song: ${song.title}`);
   }
 }
