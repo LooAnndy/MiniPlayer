@@ -11,6 +11,7 @@ export default class PlayerViewModel {
   @Trace message: string = '点击下方按钮选择音乐文件';
   @Trace isPlaying: boolean = false;
   @Trace isPlayed: boolean = false;  // 是否有过播放历史（控制 PlayerBar 显示）
+  @Trace isBuffering: boolean = false;  // 是否正在缓冲（控制 loading 动画）
   @Trace currentFileName: string = '';
   @Trace playerState: string = 'idle';
   @Trace currentTime: number = 0;
@@ -98,6 +99,20 @@ export default class PlayerViewModel {
     this.playerService.onSeekDone = () => {
       console.info('跳转完成');
       this.isDragging = false;
+    };
+
+    // 缓冲开始：显示 loading
+    this.playerService.onBufferingStart = () => {
+      this.isBuffering = true;
+      this.message = '缓冲中...';
+    };
+
+    // 缓冲结束：隐藏 loading，恢复播放状态提示
+    this.playerService.onBufferingEnd = () => {
+      this.isBuffering = false;
+      if (this.isPlaying) {
+        this.message = '正在播放...';
+      }
     };
   }
 

@@ -84,13 +84,32 @@ export struct PlayerPage {
         .width('100%')
         .padding({ left: 16, right: 16, top: 30, bottom: 12 })
 
-        // ========== 封面图：方形、圆角、阴影
-        Image(this.currentSong?.coverUrl || $r('app.media.default_cover'))
-          .width(280)
-          .aspectRatio(1)
-          .borderRadius(16)
-          .objectFit(ImageFit.Cover)
-          .shadow({ radius: 20, color: '#33000000', offsetY: 8 })
+        // ========== 封面图：方形、圆角、阴影 + 缓冲 loading 叠加
+        Stack() {
+          Image(this.currentSong?.coverUrl || $r('app.media.default_cover'))
+            .width(280)
+            .aspectRatio(1)
+            .borderRadius(16)
+            .objectFit(ImageFit.Cover)
+            .shadow({ radius: 20, color: '#33000000', offsetY: 8 })
+
+          if (this.viewModel.isBuffering) {
+            Column({ space: 8 }) {
+              LoadingProgress()
+                .width(36)
+                .height(36)
+                .color(Color.White)
+              Text('缓冲中...')
+                .fontSize(12)
+                .fontColor('rgba(255, 255, 255, 0.8)')
+            }
+            .width(280)
+            .aspectRatio(1)
+            .borderRadius(16)
+            .justifyContent(FlexAlign.Center)
+            .backgroundColor('rgba(0, 0, 0, 0.5)')
+          }
+        }
 
         // ========== 歌曲信息 + 收藏按钮
         Row({ space: 12 }) {

@@ -1,11 +1,21 @@
 /**
  * 音频播放服务 —— 封装 @ohos.multimedia.media AVPlayer，管理播放状态机
+ *
+ * 缓冲优化（参照华为官方流媒体播放开发指导）：
+ *   - PlaybackStrategy.preferredBufferDuration = 20s（点播提前缓存，减少卡顿）
+ *   - 监听 bufferingUpdate 事件，传递缓冲状态到上层
+ *   - timeUpdate 节流至 250ms，减少 UI 线程压力
+ *   - error 事件自动 reset() 恢复播放器
  */
 import media from '@ohos.multimedia.media';
 import { BusinessError } from '@ohos.base';
 
+// timeUpdate 节流间隔（ms）
+const TIME_UPDATE_THROTTLE_MS: number = 250;
+
 export class AVPlayerService {
   private avPlayer: media.AVPlayer | null = null;
+  private lastTimeUpdateTs: number = 0;
 
   // 回调接口：供 ViewModel 订阅播放器事件
   public onStateChanged?: (state: string) => void;
@@ -13,9 +23,11 @@ export class AVPlayerService {
   public onTimeUpdate?: (currentTime: number, duration: number) => void;
   public onDurationUpdate?: (duration: number) => void;
   public onSeekDone?: () => void;
+  public onBufferingStart?: () => void;
+  public onBufferingEnd?: () => void;
 
-  // 创建 AVPlayer 实例并注册状态机回调
-  async initPlayer() {
+  // 创建 AVPlayer 实例并注册全部事件回调
+  async initPlayer(): Promise<void> {
     try {
       this.avPlayer = await media.createAVPlayer();
       this.setAVPlayerCallback();
@@ -24,48 +36,66 @@ export class AVPlayerService {
     }
   }
 
-  // 注册播放器事件监听：状态变化、错误、时长更新、时间更新、跳转完成
-  private setAVPlayerCallback() {
+  private setAVPlayerCallback(): void {
     if (!this.avPlayer) return;
 
-    // 播放器状态机变化（idle → initialized → prepared → playing → paused → completed）
     this.avPlayer.on('stateChange', (state: string) => {
       console.info(`AVPlayer state changed to: ${state}`);
       this.onStateChanged?.(state);
     });
 
-    // 播放错误回调
+    // 错误回调：自动 reset 以便恢复播放器，同时通知上层
     this.avPlayer.on('error', (error: BusinessError) => {
       console.error('AVPlayer error:', JSON.stringify(error));
+      this.avPlayer?.reset();
       this.onError?.(error);
     });
 
-    // 总时长更新（prepare 完成后触发）
     this.avPlayer.on('durationUpdate', (duration: number) => {
       console.info(`durationUpdate: ${duration}ms`);
       this.onDurationUpdate?.(duration);
     });
 
-    // 播放进度更新（约每 300ms 触发一次）
+    // 播放进度更新：节流至 250ms，降低 UI 刷新频率
     this.avPlayer.on('timeUpdate', (time: number) => {
+      const now: number = Date.now();
+      if (now - this.lastTimeUpdateTs < TIME_UPDATE_THROTTLE_MS) {
+        return;
+      }
+      this.lastTimeUpdateTs = now;
       if (this.avPlayer) {
-        const duration = this.avPlayer.duration;
+        const duration: number = this.avPlayer.duration;
         this.onTimeUpdate?.(time, duration);
       }
     });
 
-    // seek 操作完成回调
+    // 缓冲状态更新：BUFFERING_START / BUFFERING_PERCENT / BUFFERING_END / CACHED_DURATION
+    this.avPlayer.on('bufferingUpdate', (infoType: media.BufferingInfoType) => {
+      if (infoType === media.BufferingInfoType.BUFFERING_START) {
+        console.info('AVPlayer buffering start');
+        this.onBufferingStart?.();
+      } else if (infoType === media.BufferingInfoType.BUFFERING_END) {
+        console.info('AVPlayer buffering end');
+        this.onBufferingEnd?.();
+      }
+    });
+
     this.avPlayer.on('seekDone', () => {
       console.info('seekDone');
       this.onSeekDone?.();
     });
   }
 
-  // 设置播放源 URL（普通流：网易云/QQ，URL 自身含鉴权参数）
-  async setUrl(url: string) {
+  /**
+   * 设置普通流播放源（网易云/QQ，URL 自身含鉴权参数）
+   * 使用 PlaybackStrategy 预缓冲 20 秒，减少卡顿
+   */
+  async setUrl(url: string): Promise<void> {
     if (!this.avPlayer) return;
     try {
-      this.avPlayer.url = url;
+      const mediaSrc: media.MediaSource = media.createMediaSourceWithUrl(url);
+      const strategy: media.PlaybackStrategy = { preferredBufferDuration: 20 };
+      this.avPlayer.setMediaSource(mediaSrc, strategy);
     } catch (err) {
       console.error('Failed to set url:', (err as BusinessError).message);
     }
@@ -73,33 +103,31 @@ export class AVPlayerService {
 
   /**
    * 设置带鉴权头的播放源（B站等需要 Referer 的 CDN）
-   * 通过 createMediaSourceWithUrl 传递 HTTP 请求头，满足 CDN 鉴权
+   * 同时应用 PlaybackStrategy 预缓冲策略
    */
-  async setUrlWithHeaders(url: string, headers: Record<string, string>) {
+  async setUrlWithHeaders(url: string, headers: Record<string, string>): Promise<void> {
     if (!this.avPlayer) return;
     try {
-      const mediaSrc = media.createMediaSourceWithUrl(url, headers);
-      this.avPlayer.setMediaSource(mediaSrc);
+      const mediaSrc: media.MediaSource = media.createMediaSourceWithUrl(url, headers);
+      const strategy: media.PlaybackStrategy = { preferredBufferDuration: 20 };
+      this.avPlayer.setMediaSource(mediaSrc, strategy);
     } catch (err) {
       console.error('Failed to set url with headers:', (err as BusinessError).message);
     }
   }
 
-  // 准备播放：由 initialized 状态触发
-  async prepare() {
+  async prepare(): Promise<void> {
     if (!this.avPlayer) return;
     try {
       await this.avPlayer.prepare();
       console.info('Succeeded in preparing');
     } catch (err) {
       console.error('Failed to prepare, error message is :' + (err as BusinessError).message);
-      // 异常时重置播放器，以便重新设置资源
       this.avPlayer?.reset();
     }
   }
 
-  // 开始播放：仅 prepared / paused / stopped / completed 状态有效
-  async play() {
+  async play(): Promise<void> {
     if (!this.avPlayer) return;
     try {
       await this.avPlayer.play();
@@ -109,8 +137,7 @@ export class AVPlayerService {
     }
   }
 
-  // 暂停播放
-  async pause() {
+  async pause(): Promise<void> {
     if (!this.avPlayer) return;
     try {
       await this.avPlayer.pause();
@@ -120,8 +147,7 @@ export class AVPlayerService {
     }
   }
 
-  // 停止播放（回退到 prepared 状态，再次 play 从头开始）
-  async stop() {
+  async stop(): Promise<void> {
     if (!this.avPlayer) return;
     try {
       await this.avPlayer.stop();
@@ -131,8 +157,7 @@ export class AVPlayerService {
     }
   }
 
-  // 重置播放器（回到 idle 状态）
-  async reset() {
+  async reset(): Promise<void> {
     if (!this.avPlayer) return;
     try {
       await this.avPlayer.reset();
@@ -142,11 +167,9 @@ export class AVPlayerService {
     }
   }
 
-  // 跳转到指定位置（毫秒）
-  async seek(position: number) {
+  async seek(position: number): Promise<void> {
     if (!this.avPlayer) return;
     try {
-      // seek 使用 callback 方式，不返回 Promise，但官方示例中同样需要异常处理
       this.avPlayer.seek(position);
       console.info('Succeeded in seeking');
     } catch (err) {
@@ -154,8 +177,7 @@ export class AVPlayerService {
     }
   }
 
-  // 释放播放器资源（退出页面时调用）
-  async release() {
+  async release(): Promise<void> {
     if (!this.avPlayer) return;
     try {
       await this.avPlayer.release();
@@ -167,17 +189,14 @@ export class AVPlayerService {
     }
   }
 
-  // 获取当前播放器状态
   getState(): string {
     return this.avPlayer?.state || 'idle';
   }
 
-  // 获取当前播放时间（毫秒）
   getCurrentTime(): number {
     return this.avPlayer?.currentTime || 0;
   }
 
-  // 获取总时长（毫秒）
   getDuration(): number {
     return this.avPlayer?.duration || 0;
   }

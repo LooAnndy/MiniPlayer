@@ -69,15 +69,20 @@ export struct PlayerBar {
             .width(40).height(40).color('#C20C0C')
             .backgroundColor('#E8E8E8').style({ strokeWidth: 3 })
 
-          Button() {
-            Image(this.viewModel.isPlaying
-              ? $r('sys.media.ohos_ic_public_pause')
-              : $r('sys.media.ohos_ic_public_play'))
-              .width(16).height(16).fillColor('#C20C0C')
+          if (this.viewModel.isBuffering) {
+            LoadingProgress()
+              .width(20).height(20).color('#C20C0C')
+          } else {
+            Button() {
+              Image(this.viewModel.isPlaying
+                ? $r('sys.media.ohos_ic_public_pause')
+                : $r('sys.media.ohos_ic_public_play'))
+                .width(16).height(16).fillColor('#C20C0C')
+            }
+            .type(ButtonType.Circle).backgroundColor(Color.Transparent)
+            .width(28).height(28)
+            .onClick(() => { this.viewModel.togglePlayPause(); })
           }
-          .type(ButtonType.Circle).backgroundColor(Color.Transparent)
-          .width(28).height(28)
-          .onClick(() => { this.viewModel.togglePlayPause(); })
         }
       }
       .width('100%')
