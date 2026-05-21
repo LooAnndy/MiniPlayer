@@ -5,7 +5,7 @@
  */
 import { Song, Platform } from '../model/Song';
 import { SongItem } from '../view/SongItem';
-import PlayerViewModel from '../viewmodel/PlayerViewModel';
+import { playerViewModel } from '../viewmodel/PlayerViewModel';
 import { platformServiceRegistry, SongUrlResult } from '../service/PlatformService';
 
 // 搜索源配置
@@ -24,14 +24,12 @@ const SEARCH_SOURCES: SearchSource[] = [
 @ComponentV2
 export struct SearchPage {
   @Param platform: Platform = Platform.NETEASE;
-  @Param viewModel: PlayerViewModel = new PlayerViewModel();
   @Local keyword: string = '';
   @Local searchResults: Song[] = [];
   @Local isLoading: boolean = false;
   @Local showHistory: boolean = true;
   @Local searchHistory: string[] = [];
   @Local currentPlayingId: number = -1;
-  @Local currentSong?: Song;
   // 当前激活的搜索源（可切换）
   @Local activeSource: Platform = Platform.NETEASE;
   @Event onSearch: (keyword: string, platform: Platform) => void = () => {};
@@ -131,7 +129,7 @@ export struct SearchPage {
             ListItem() {
               SongItem({
                 song: song,
-                isPlaying: this.currentPlayingId === song.id && this.viewModel.isPlaying,
+                isPlaying: this.currentPlayingId === song.id && playerViewModel.isPlaying,
                 onPlay: (s: Song) => { this.playSong(s); },
                 onMore: (s: Song) => { this.showMoreOptions(s); }
               })
@@ -183,21 +181,21 @@ export struct SearchPage {
 
   private async playSong(song: Song): Promise<void> {
     this.currentPlayingId = song.id;
-    this.currentSong = song;
+    playerViewModel.setCurrentSong(song);
     this.onPlaySong(song);
 
-    this.viewModel.message = `正在获取播放地址: ${song.title}`;
+    playerViewModel.message = `正在获取播放地址: ${song.title}`;
     const sourceId: string = song.sourceId ? song.sourceId : String(song.id);
     const urlResult: SongUrlResult = await platformServiceRegistry.getSongUrl(song.platform, sourceId);
     if (urlResult.url) {
       song.audioUrl = urlResult.url;
       if (urlResult.headers) {
-        await this.viewModel.playStreamUrlWithHeaders(urlResult.url, urlResult.headers);
+        await playerViewModel.playStreamUrlWithHeaders(urlResult.url, urlResult.headers);
       } else {
-        await this.viewModel.playStreamUrl(urlResult.url);
+        await playerViewModel.playStreamUrl(urlResult.url);
       }
     } else {
-      this.viewModel.message = `无播放权限: ${song.title}`;
+      playerViewModel.message = `无播放权限: ${song.title}`;
     }
   }
 

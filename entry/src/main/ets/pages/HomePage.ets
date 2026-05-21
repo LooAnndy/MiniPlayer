@@ -4,7 +4,6 @@
  * 内容区：横向滑动 Swiper，默认选中"推荐"
  */
 import { Song, SegmentItem } from '../model/Song';
-import PlayerViewModel from '../viewmodel/PlayerViewModel';
 
 // 子频道配置（对齐文档，索引 1 为默认选中"推荐"）
 const SEGMENTS: SegmentItem[] = [
@@ -20,7 +19,6 @@ const SEGMENTS: SegmentItem[] = [
 
 @ComponentV2
 export struct HomePage {
-  @Param viewModel: PlayerViewModel = new PlayerViewModel();
   @Event onPlaySong: (song: Song) => void = () => {};
 
   @Local selectedSegment: number = 1; // 默认选中"推荐"

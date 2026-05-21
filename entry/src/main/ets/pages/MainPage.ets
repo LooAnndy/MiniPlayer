@@ -5,7 +5,7 @@
 import { Platform, Song, TabBarItem } from '../model/Song';
 import { SearchPage } from './SearchPage';
 import { PlayerBar } from '../view/PlayerBar';
-import PlayerViewModel from '../viewmodel/PlayerViewModel';
+import { playerViewModel } from '../viewmodel/PlayerViewModel';
 import { HomePage } from './HomePage';
 import { MinePage } from './MinePage';
 
@@ -19,17 +19,15 @@ const TAB_ITEMS: TabBarItem[] = [
 @ComponentV2
 export struct MainPage {
   @Param navPathStack: NavPathStack = new NavPathStack();
-  @Local viewModel: PlayerViewModel = new PlayerViewModel();
   @Local currentTab: number = 0;
-  @Local currentSong?: Song;
   private tabController: TabsController = new TabsController();
 
   aboutToAppear(): void {
-    this.viewModel.initPlayer();
+    playerViewModel.initPlayer();
   }
 
   aboutToDisappear(): void {
-    this.viewModel.release();
+    playerViewModel.release();
   }
 
   build() {
@@ -38,7 +36,6 @@ export struct MainPage {
       Tabs({ index: this.currentTab, controller: this.tabController }) {
         TabContent() {
           HomePage({
-            viewModel: this.viewModel,
             onPlaySong: this.handlePlaySong
           })
         }
@@ -46,7 +43,6 @@ export struct MainPage {
         TabContent() {
           SearchPage({
             platform: Platform.NETEASE,
-            viewModel: this.viewModel,
             onSearch: this.handleSearch,
             onPlaySong: this.handlePlaySong
           })
@@ -68,11 +64,8 @@ export struct MainPage {
       })
 
       // PlayerBar 紧贴 TabBar 上方
-      if (this.viewModel.isPlayed) {
-        PlayerBar({
-          viewModel: this.viewModel,
-          currentSong: this.currentSong
-        })
+      if (playerViewModel.isPlayed) {
+        PlayerBar()
       }
 
       // 自定义底部 TabBar
@@ -124,8 +117,7 @@ export struct MainPage {
   }
 
   private handlePlaySong = async (song: Song): Promise<void> => {
-    this.currentSong = song;
-    this.viewModel.isPlayed = true;
+    playerViewModel.setCurrentSong(song);
     console.info(`Play song: ${song.title}`);
   }
 }

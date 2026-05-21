@@ -5,14 +5,12 @@
  *   功能图标栏 + 进度条 + 播放控制（ControlAreaComponent）
  */
 import { Song } from '../model/Song';
-import PlayerViewModel from '../viewmodel/PlayerViewModel';
+import { playerViewModel } from '../viewmodel/PlayerViewModel';
 import { Router, UIContext } from '@kit.ArkUI';
 
 @Entry
 @ComponentV2
 export struct PlayerPage {
-  @Param viewModel: PlayerViewModel = new PlayerViewModel();
-  @Local currentSong?: Song;
   @Local playlist: Song[] = [];
   @Local currentIndex: number = 0;
   @Local showPlaylist: boolean = false;
@@ -31,12 +29,7 @@ export struct PlayerPage {
   @Local showVolumePanel: boolean = false;
 
   aboutToAppear(): void {
-    this.viewModel.initPlayer();
     this.updateSliderValue();
-  }
-
-  aboutToDisappear(): void {
-    this.viewModel.release();
   }
 
   build() {
@@ -86,14 +79,14 @@ export struct PlayerPage {
 
         // ========== 封面图：方形、圆角、阴影 + 缓冲 loading 叠加
         Stack() {
-          Image(this.currentSong?.coverUrl || $r('app.media.default_cover'))
+          Image(playerViewModel.currentSong?.coverUrl || $r('app.media.default_cover'))
             .width(280)
             .aspectRatio(1)
             .borderRadius(16)
             .objectFit(ImageFit.Cover)
             .shadow({ radius: 20, color: '#33000000', offsetY: 8 })
 
-          if (this.viewModel.isBuffering) {
+          if (playerViewModel.isBuffering) {
             Column({ space: 8 }) {
               LoadingProgress()
                 .width(36)
@@ -114,7 +107,7 @@ export struct PlayerPage {
         // ========== 歌曲信息 + 收藏按钮
         Row({ space: 12 }) {
           Column({ space: 6 }) {
-            Text(this.currentSong?.title || this.viewModel.currentFileName || '未播放')
+            Text(playerViewModel.currentSong?.title || playerViewModel.currentFileName || '未播放')
               .fontSize(22)
               .fontWeight(FontWeight.Bold)
               .fontColor(Color.White)
@@ -122,7 +115,7 @@ export struct PlayerPage {
               .textOverflow({ overflow: TextOverflow.Ellipsis })
               .width('100%')
 
-            Text(this.currentSong?.artist || '未知歌手')
+            Text(playerViewModel.currentSong?.artist || '未知歌手')
               .fontSize(16)
               .fontColor('rgba(255, 255, 255, 0.8)')
               .maxLines(1)
@@ -218,19 +211,19 @@ export struct PlayerPage {
                   this.isDragging = true;
                 } else if (mode === SliderChangeMode.End) {
                   this.isDragging = false;
-                  const targetTime = Math.floor((value / 100) * this.viewModel.duration);
-                  this.viewModel.seek(targetTime);
+                  const targetTime = Math.floor((value / 100) * playerViewModel.duration);
+                  playerViewModel.seek(targetTime);
                 }
               })
 
             Row({ space: 0 }) {
-              Text(this.viewModel.formatTime(this.viewModel.currentTime))
+              Text(playerViewModel.formatTime(playerViewModel.currentTime))
                 .fontSize(13)
                 .fontColor('rgba(255, 255, 255, 0.7)')
 
               Blank()
 
-              Text(this.viewModel.formatTime(this.viewModel.duration))
+              Text(playerViewModel.formatTime(playerViewModel.duration))
                 .fontSize(13)
                 .fontColor('rgba(255, 255, 255, 0.7)')
             }
@@ -272,8 +265,8 @@ export struct PlayerPage {
 
             // 播放/暂停（圆形主按钮，居中）
             Button() {
-              Image(this.viewModel.isPlaying ? $r('app.media.ic_play_all') : $r('app.media.ic_play'))
-                .width(64)
+              Image(playerViewModel.isPlaying ? $r('app.media.ic_play') : $r('app.media.ic_play_all'))
+              .width(64)
                 .height(64)
                 .fillColor('#C20C0C')
             }
@@ -281,7 +274,7 @@ export struct PlayerPage {
             .width(64)
             .height(64)
             .onClick(() => {
-              this.viewModel.togglePlayPause();
+              playerViewModel.togglePlayPause();
             })
 
             // 下一首
@@ -388,7 +381,7 @@ export struct PlayerPage {
                 }
                 .onClick(() => {
                   this.currentIndex = index;
-                  this.currentSong = this.playlist[index];
+                  playerViewModel.currentSong = this.playlist[index];
                   this.showPlaylist = false;
                 })
               })
@@ -508,8 +501,8 @@ export struct PlayerPage {
   }
 
   private updateSliderValue(): void {
-    if (!this.isDragging && this.viewModel.duration > 0) {
-      this.sliderValue = (this.viewModel.currentTime / this.viewModel.duration) * 100;
+    if (!this.isDragging && playerViewModel.duration > 0) {
+      this.sliderValue = (playerViewModel.currentTime / playerViewModel.duration) * 100;
     }
   }
 

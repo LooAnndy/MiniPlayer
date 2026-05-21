@@ -2,20 +2,17 @@
  * 迷你播放条 —— 内置播放控制 + 点击跳转全屏播放页
  * 交互逻辑内聚：细进度条 + 封面/歌名/环形播放按钮
  */
-import { Song } from '../model/Song';
-import PlayerViewModel from '../viewmodel/PlayerViewModel';
+import { playerViewModel } from '../viewmodel/PlayerViewModel';
 import { Router, UIContext } from '@kit.ArkUI';
 
 @ComponentV2
 export struct PlayerBar {
-  @Param viewModel: PlayerViewModel = new PlayerViewModel();
-  @Param currentSong?: Song = undefined;
 
   build() {
     Column({ space: 0 }) {
       // 顶部细进度条
       Progress({
-        value: this.viewModel.progressValue,
+        value: playerViewModel.progressValue,
         total: 100,
         type: ProgressType.Linear
       })
@@ -28,22 +25,22 @@ export struct PlayerBar {
       Row({ space: 12 }) {
         // 封面 + 歌名区域：点击跳转全屏播放页
         Row({ space: 10 }) {
-          Image(this.currentSong?.coverUrl || $r('app.media.default_cover'))
+          Image(playerViewModel.currentSong?.coverUrl || $r('app.media.default_cover'))
             .width(44).height(44).borderRadius(22).objectFit(ImageFit.Cover)
 
           Column({ space: 2 }) {
-            Text(this.currentSong?.title || this.viewModel.currentFileName || '未播放')
+            Text(playerViewModel.currentSong?.title || playerViewModel.currentFileName || '未播放')
               .fontSize(14).fontWeight(FontWeight.Medium)
               .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).width(120)
 
             Row({ space: 4 }) {
-              Text(this.viewModel.formatTime(this.viewModel.currentTime))
+              Text(playerViewModel.formatTime(playerViewModel.currentTime))
                 .fontSize(10).fontColor('#999999')
               Text('/').fontSize(10).fontColor('#CCCCCC')
-              Text(this.viewModel.formatTime(this.viewModel.duration))
+              Text(playerViewModel.formatTime(playerViewModel.duration))
                 .fontSize(10).fontColor('#999999')
               Blank()
-              Text(this.currentSong?.artist || '点击选择音乐')
+              Text(playerViewModel.currentSong?.artist || '点击选择音乐')
                 .fontSize(11).fontColor('#999999')
                 .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).width(70)
             }
@@ -62,26 +59,26 @@ export struct PlayerBar {
         // 环形进度 + 播放按钮
         Stack() {
           Progress({
-            value: this.viewModel.progressValue,
+            value: playerViewModel.progressValue,
             total: 100,
             type: ProgressType.Ring
           })
             .width(40).height(40).color('#C20C0C')
             .backgroundColor('#E8E8E8').style({ strokeWidth: 3 })
 
-          if (this.viewModel.isBuffering) {
+          if (playerViewModel.isBuffering) {
             LoadingProgress()
               .width(20).height(20).color('#C20C0C')
           } else {
             Button() {
-              Image(this.viewModel.isPlaying
+              Image(playerViewModel.isPlaying
                 ? $r('sys.media.ohos_ic_public_pause')
                 : $r('sys.media.ohos_ic_public_play'))
                 .width(16).height(16).fillColor('#C20C0C')
             }
             .type(ButtonType.Circle).backgroundColor(Color.Transparent)
             .width(28).height(28)
-            .onClick(() => { this.viewModel.togglePlayPause(); })
+            .onClick(() => { playerViewModel.togglePlayPause(); })
           }
         }
       }

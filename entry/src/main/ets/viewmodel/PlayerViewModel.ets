@@ -3,10 +3,11 @@
  */
 import { AVPlayerService } from '../service/AVPlayerService';
 import { FileService, PlaySource } from '../utils/FileUtils';
+import { Platform, Song } from '../model/Song';
 import { BusinessError } from '@ohos.base';
 
 @ObservedV2
-export default class PlayerViewModel {
+export class PlayerViewModel {
   // @Trace 修饰的属性变化时自动通知 @ComponentV2 刷新 UI
   @Trace message: string = '点击下方按钮选择音乐文件';
   @Trace isPlaying: boolean = false;
@@ -18,6 +19,18 @@ export default class PlayerViewModel {
   @Trace duration: number = 0;
   @Trace progressValue: number = 0;
   @Trace isDragging: boolean = false;
+  @Trace currentSong: Song = {
+    id: 0,
+    name: '',
+    title: '',
+    artist: '',
+    album: '',
+    duration: 0,
+    coverUrl: '',
+    audioUrl: '',
+    platform: Platform.LOCAL,
+    sourceId: ''
+  };
 
   // 底层服务实例（非 UI 状态，不需要 @Trace）
   private playerService: AVPlayerService = new AVPlayerService();
@@ -162,6 +175,16 @@ export default class PlayerViewModel {
     }
   }
 
+  /** 暂停播放 */
+  async pause(): Promise<void> {
+    await this.playerService.pause();
+  }
+
+  /** 恢复播放 */
+  async play(): Promise<void> {
+    await this.playerService.play();
+  }
+
   /**
    * 播放网络流 URL（网易云在线播放）
    * 直接设置 https:// 地址，状态机自动触发 initialized → prepared → playing
@@ -276,4 +299,13 @@ export default class PlayerViewModel {
   hasCurrentPlaySource(): boolean {
     return !!this.currentPlaySource;
   }
+
+  /** 设置当前歌曲并标记已播放（供 SearchPage 调用） */
+  setCurrentSong(song: Song): void {
+    this.currentSong = song;
+    this.isPlayed = true;
+  }
 }
+
+/** 全局播放器单例 —— 所有页面/组件共享同一实例 */
+export const playerViewModel: PlayerViewModel = new PlayerViewModel();
